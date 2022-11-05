@@ -1,0 +1,41 @@
+# Parameter file for simulator.
+# Only edit values in brackets!!
+
+# Paths
+[samples/test/] Output directory (out_path).
+[ms] Path to ms binary (ms_path).
+
+# Tree
+[0] Cell tree generation type: 0 for ms; 1 for random; (tree_type).
+[25] Number of observed cells in the tree (num_cells).
+[15.1403] Exponential growth rate (growth_rate).
+
+# Focal Events
+[0] CNV placement method: 0 for drawing from a Poisson with fixed mean; 1 for drawing from a Poisson with mean prop to edge length; (placement_type).
+[2] Parameter for placement selection (placement_param).
+[0] Multiplier for the number of events along edge into founder cell. (root_event_mult). 
+[5000000] Mean copy number event length in bp (cn_length_mean).
+[0.5] Probability an event is an amplification. Deletion rate is 1 - amp rate (cn_copy_param).
+[0.5] Parameter in the geometric to select number of copies (cn_event_rate).
+
+# Chromosome and Genome events
+[False] Include WGD (WGD).
+[True] Include whole chromosomal alterations (whole_chrom_event).
+[0.2] Probability that a chromosome is affected by a whole chrom event (whole_chrom_rate).
+[0.3] Probability that a whole chrom event is an amplification (whole_chrom_type).
+[0.8] Parameter in the geometric to select the number of copies for whole chrom events (whole_chrom_copy).
+
+# Genome and CN events
+[10000] Min CN event length (min_cn_length).
+[22] Number of chromosomes (num_chroms).
+[100000000] Length of each chromosome (chrom_length).
+[True] Use hg38 chromosome lengths (use_hg38_lengths).
+[1000000] Bin length in copy number calls (bin_length).
+
+# Noise
+[0] Choice of error model for adding noise (error_type).
+[0] Primary parameter for error model (error_rate_1).
+[0] Secondary parameter for error model (error_rate_2).
+
+# Log
+[True] Summarize simulation statistics (summary).
