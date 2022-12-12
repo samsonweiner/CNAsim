@@ -1,6 +1,8 @@
 from pyfaidx import Fasta
 import numpy as np
 import subprocess
+import os
+import pickle
 
 def read_fasta(input_fasta):
     ref = Fasta(input_fasta)
@@ -10,6 +12,9 @@ def read_fasta(input_fasta):
     return ref, chrom_lens
 
 def build_cell_ref(genome, ref, chrom_names, regions_per_chrom, min_cn_len, allele, prefix):
+    if isinstance(genome, str):
+        with open(genome, 'rb') as f:
+            genome = pickle.load(f)
     ref_name = prefix + '_allele' + str(allele) + '.fa'
     chrom_lens = {}
     f = open(ref_name, 'w+')

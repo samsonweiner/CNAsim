@@ -1,6 +1,5 @@
 import numpy as np
 from tree import Tree
-import copy
 from collections import Counter
 import os
 import pickle
@@ -260,7 +259,7 @@ def format_profile(node, chrom_names, num_regions, bins):
                 regions = list(range(bins[chrom][i], bins[chrom][i+1]))
                 node.profile[chrom][allele].append(round(sum([node.genome[chrom][allele][i] for i in regions]) / len(regions)))
 
-def evolve_tree(node, args, chrom_names, num_regions, bins=None, ref=None, Aa=None, Bb=None):
+def evolve_tree(node, args, chrom_names, num_regions, bins=None):
     if not node.is_root():
         node.inheret()
     
@@ -273,19 +272,16 @@ def evolve_tree(node, args, chrom_names, num_regions, bins=None, ref=None, Aa=No
         if args['mode'] == 0 and bins != None:
             format_profile(node, chrom_names, num_regions, bins)
         # reads mode
-        elif args['mode'] == 1 and ref != None:
-            #if node.name == 'cell1':
-            #    pass
-                    
-                #a,b = build_cell_ref(node.genome, ref, chrom_names, num_regions, args['min_cn_length'], 0, os.path.join(args['out_path'], node.name))
-                #a,b = build_cell_ref(node.genome, ref, chrom_names, num_regions, args['min_cn_length'], 1, os.path.join(args['out_path'], node.name))
-            gen_reads_cell(node, ref, num_regions, chrom_names, args['min_cn_length'], args['window_size'], args['interval'], Aa, Bb, args['coverage'], args['read_length'], args['out_path'])
+        elif args['mode'] == 1:
+            with open(os.path.join(args['out_path'], node.name + '.pkl'), 'wb') as f:
+                pickle.dump(node.genome, f)
+            #gen_reads_cell(node, ref, num_regions, chrom_names, args['min_cn_length'], args['window_size'], args['interval'], Aa, Bb, args['coverage'], args['read_length'], args['out_path'])
         else:
             print('No data mode selected?')
             pass
 
     for child in node.children:
-        evolve_tree(child, args, chrom_names, num_regions, bins=bins, ref=ref, Aa=Aa, Bb=Bb)
+        evolve_tree(child, args, chrom_names, num_regions, bins=bins)
 
     del node.genome
 

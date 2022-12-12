@@ -54,6 +54,7 @@ def parse_args():
     parser.add_argument('-I', '--interval', type=int, default=3, help='Initializes a point in the coverage distribution every interval number of windows.')
     parser.add_argument('-C', '--coverage', type=float, default=0.1, help='Average sequencing coverage across the genome.')
     parser.add_argument('-R', '--read-length', type=int, default=35, help='Paired-end short read length.')
+    parser.add_argument('-P', '--processors', type=int, default=1, help='Number of processes to use for generating reads in parallel..')
 
     parser.add_argument('-d', '--summary', action='store_true', help='Summarize simulation statistics.')
     parser.add_argument('-F', '--param-file', type=str, default=None, help='Optional parameter file.')
@@ -96,19 +97,16 @@ def main(args):
         ref, ref_chrom_lens = read_fasta(args['reference'])
         ref_chrom_lens.pop('chrX', None)
         ref_chrom_lens.pop('chrY', None)
-
         chrom_names = list(ref_chrom_lens.keys())
-        [Aa, Bb] = get_alpha_beta(args['lorenz_x'], args['lorenz_y'])
 
         if args['use_hg38_static']:
             normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, ref_chrom_lens, arm_ratios)
         else:
             normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, ref_chrom_lens, args['chrom_arm_ratio'])
         tree.root.genome = normal_diploid_genome
-        #print(get_size(tree.root.genome))
 
-        evolve_tree(tree.root, args, chrom_names, num_regions, ref=ref, Aa=Aa, Bb=Bb)
-
+        evolve_tree(tree.root, args, chrom_names, num_regions)
+        gen_reads(ref, num_regions, chrom_names, tree, args['lorenz_x'], args['lorenz_y'], args['min_cn_length'], args['interval'], args['window_size'], args['coverage'], args['read_length'], args['out_path'], args['processors'])
 
     # CNP mode
     if args['mode'] == 0:

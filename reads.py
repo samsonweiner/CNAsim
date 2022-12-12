@@ -1,5 +1,7 @@
 import os
 import subprocess
+import itertools
+import multiprocessing
 
 import numpy as np
 from scipy.stats import beta
@@ -7,6 +9,9 @@ from scipy.optimize import newton_krylov
 from scipy.optimize.nonlin import NoConvergence
 
 from sequence import *
+
+def iter_by_chunk(iterable, chunksize):
+    return itertools.zip_longest(*[iter(iterable)] * chunksize)
 
 # Estimating alpha/beta from point on lorenz curve
 def get_alpha_beta(x0, y0):
@@ -106,11 +111,10 @@ def draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_l
 
 # Generate reads across the genome for a given cell
 def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, read_len, out_path):
-    
     print('Generating reads for:', cell.name)
     prefix = os.path.join(out_path, cell.name)
     for allele in [0, 1]:
-        cell_ref, chrom_lens = build_cell_ref(cell.genome, ref, chrom_names, num_regions, min_cn_len, allele, prefix)
+        cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', ref, chrom_names, num_regions, min_cn_len, allele, prefix)
         init = False
         for chrom in chrom_names:
             num_windows = round(chrom_lens[chrom] / window_size)
@@ -126,7 +130,7 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size,
                 with open(region_fa_path, 'w+') as f:
                     call = subprocess.run(['samtools', 'faidx', cell_ref, chrom + ':' + str(start) + '-' + str(end)], stdout=f)
 
-                proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(readcounts[w]), '-1', str(read_len), '-2', str(read_len), region_fa_path, region_fa_path[:-3]])
+                proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(readcounts[w]), '-1', str(read_len), '-2', str(read_len), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
                 if not init:
                     os.rename(region_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
                     os.rename(region_fa_path[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
@@ -149,9 +153,23 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size,
     os.remove(prefix + '_allele1.read1.fastq.gz')
     os.remove(prefix + '_allele0.read2.fastq.gz')
     os.remove(prefix + '_allele1.read2.fastq.gz')
+    os.remove(prefix + '.pkl')
 
 # Generate reads for all cells
-def gen_reads(ref, num_regions, chrom_names, tree, x0, y0, min_cn_len, interval, window_size, coverage, read_len):
+def gen_reads(ref, num_regions, chrom_names, tree, x0, y0, min_cn_len, interval, window_size, coverage, read_len, out_path, num_processors):
+    global gen_reads_cell_helper
+    # Helper function for parallel processing
+    def gen_reads_cell_helper(cell):
+        gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, read_len, out_path)
+
     [Aa, Bb] = get_alpha_beta(x0, y0)
-    for cell in tree.iter_leaves():
-        gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, read_len)
+    if num_processors == 1:
+        for cell in tree.iter_leaves():
+            gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, read_len, out_path)
+    else:
+        pool = multiprocessing.Pool(processes=num_processors)
+        for chunk in iter_by_chunk(tree.iter_leaves(), num_processors):
+            cells = list(chunk)
+            while None in cells:
+                cells.remove(None)
+            pool.map(gen_reads_cell_helper, cells)
