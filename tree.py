@@ -1,15 +1,17 @@
 import numpy as np
 import subprocess
-from collections import deque
+import os
+from collections import deque, Counter
 import copy
 
 class Node:
-    def __init__(self, name='', edge_len = 0, parent = None):
+    def __init__(self, name='', edge_len = 0, parent = None, cell_type='aneuploid'):
         self.name = name
         self.length = edge_len
         self.parent = parent
         self.children = []
         self.events = []
+        self.cell_type = cell_type
         #self.whole_chrom_events = []
         self.genome = None
         #self.alterations = None
@@ -20,6 +22,9 @@ class Node:
             return str(self.name)
         else:
             return ''
+
+    def __len__(self):
+        return len(self.get_leaves())
     
     #format codes --> 0: leaf names only, 1: leaf names + lengths only, 2: leaf and internal names, 3: leaf and internal names + lengths
     def write_newick(self, terminate=True, format=0):
@@ -53,15 +58,27 @@ class Node:
         self.parent = parent
 
     def set_child(self, child):
+        if child.parent:
+            pass
         self.children.append(child)
         child.parent = self
 
     def set_sibling(self, sibling):
         self.sibling.append(sibling)
 
+    def set_type(self, cell_type):
+        self.cell_type = cell_type
+
     def inheret(self):
-        self.genome = copy.deepcopy(self.parent.genome)
+        #self.genome = copy.deepcopy(self.parent.genome)
         #self.alterations = copy.deepcopy(self.parent.alterations)
+        self.genome = {}
+        chrom_names = list(self.parent.genome.keys())
+        for chrom in chrom_names:
+            self.genome[chrom] = [[], []]
+            for allele in [0, 1]:
+                for homolog in self.parent.genome[chrom][allele]:
+                    self.genome[chrom][allele].append(homolog.copy())
 
     def is_leaf(self):
         return len(self.children) == 0
@@ -79,6 +96,11 @@ class Node:
         child = Node(name = name, edge_len = float(edge_len), parent = self)
         self.children.append(child)
         return child
+
+    def detach(self):
+        if not self.is_root():
+            self.parent.children.remove(self)
+            self.parent = None
 
     def iter_postorder(self):
         visit_queue = deque()
@@ -130,13 +152,21 @@ class Node:
 class Tree:
     def __init__(self, root=None, newick=None):
         self.root = root
+        self.founder = None
         if newick:
             self.root = str_to_newick(newick)
         self.cell_names = [node.name for node in self.iter_leaves()]
 
+    def __len__(self):
+        return len([leaf for leaf in self.iter_leaves()])
+
     def print_newick(self, format=0):
         newick_str = self.root.write_newick(format=format)
         print(newick_str)
+
+    def set_founder(self, node):
+        self.founder = node
+        node.set_type('founder')
 
     def iter_postorder(self):
         return self.root.iter_postorder()
@@ -173,7 +203,7 @@ class Tree:
         count = 1
         for leaf in self.iter_leaves():
             if leaf.name == '':
-                leaf.name = 'leaf' + str(count)
+                leaf.name = 'cell' + str(count)
                 count += 1
         self.cell_names = [node.name for node in self.iter_leaves()]
 
@@ -182,18 +212,31 @@ class Tree:
         leafcount = 1
         for node in self.iter_descendants():
             if node.is_root():
-                node.name = 'root'
-            elif not node.is_leaf():
-                node.name = 'internal' + str(internalcount)
-                internalcount += 1
+                if node.cell_type == 'founder':
+                    node.name = 'founder'
+                else:
+                    node.name = 'root'
             elif node.is_leaf():
-                node.name = 'leaf' + str(leafcount)
+                #if node.cell_type == 'normal':
+                #    node.name = 'normal' + str(leafcount)
+                #    leafcount += 1
+                #elif node.cell_type == 'pseudonormal':
+                #    node.name = 'psd_normal' + str(leafcount)
+                #    leafcount += 1
+                #else:
+                node.name = 'cell' + str(leafcount)
                 leafcount += 1
+            else:
+                if node.cell_type == 'founder':
+                    node.name = 'founder'
+                else:
+                    node.name = 'ancester' + str(internalcount)
+                    internalcount += 1
         self.cell_names = [node.name for node in self.iter_leaves()]
 
     def get_tree_height(self):
         return self.root.get_height()
-    
+
     def get_total_branchlen(self):
         return self.root.get_total_branchlen()
 
@@ -209,8 +252,11 @@ class Tree:
             mutations += node.events
         return mutations
 
-    def save(self, file_path, format=0):
-        newick_str = self.root.write_newick(format=format)
+    def save(self, file_path, format=0, from_founder=False):
+        if from_founder:
+            newick_str = self.founder.write_newick(format=format)
+        else:
+            newick_str = self.root.write_newick(format=format)
         f = open(file_path, 'w+')
         f.write(newick_str)
         f.close()
@@ -296,23 +342,121 @@ def set_root_branchlen(tree, scale):
     tot = tree.get_total_branchlen()
     tree.root.set_len(tot*scale)
 
+def scale_edge_lengths(tree, place_param):
+    leaf_edge_lens = [leaf.length for leaf in tree.iter_leaves()]
+    avg_leaf_len = sum(leaf_edge_lens) / len(leaf_edge_lens)
+    scalar = place_param / avg_leaf_len
+
+    for node in tree.iter_descendants():
+        if node.is_root():
+            node.length = place_param
+        else:
+            node.length = node.length * scalar
+
 # Calls the ms binary from the given path.
 def call_ms(ms_path, num_cells, out_path, growth_rate):
     seed_vals = np.random.randint(1, 100000, 3)
-    f = open(out_path + 'temp_log', 'w+')
+    temp_path = os.path.join(out_path, 'temp_log')
+    f = open(temp_path, 'w+')
     if growth_rate == 0:
         call = subprocess.call([ms_path, str(num_cells), '1', '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
     else:
         call = subprocess.call([ms_path, str(num_cells), '1', '-G', str(growth_rate), '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
     f.close()
-    with open(out_path + 'temp_log') as f:
+    with open(temp_path) as f:
         line = f.readline()
         while line[0] != '(':
             line = f.readline()
         tree_str = line[:-1]
 
-    call = subprocess.call(['rm', out_path + 'temp_log'])
+    os.remove(temp_path)
     #f = open(out_path + 'tree.nwk', 'w+')
     #f.write(tree_str)
     #f.close()
     return tree_str
+
+def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_events, out_path, ms_path, growth_rate, tree_path):
+    num_normal = round(num_cells * normal_frac)
+    num_pseudonormal = round(num_cells * pseudonormal_frac)
+    num_aneuploid = num_cells - num_normal - num_pseudonormal
+
+    if tree_type == 0:
+        tree_str = call_ms(ms_path, num_aneuploid, out_path, growth_rate)
+        tree = Tree(newick=tree_str)
+    elif tree_type == 1:
+        tree = gen_random_topology(num_aneuploid)
+    elif tree_type == 2:
+        f = open(tree_path)
+        tree_str = f.readline()
+        f.close()
+        tree = Tree(newick=tree_str)
+    
+    # Create a new root node and add normal cells as children.
+    if num_normal > 0:
+        norm_root = Node()
+        norm_root.cell_type = 'normal'
+        for i in range(num_normal):
+            n = Node()
+            n.cell_type = 'normal'
+            norm_root.set_child(n)
+    
+    # Handling diverse pseudonormal cells
+    if num_pseudonormal > 0:
+        # Create a section of the tree for pseudonormals. Distribute them to have anywhere from 1 to 'root_events' number of events. Form the tree accordingly.
+        psnorm_root = Node()
+        psnorm_root.cell_type = 'pseudonormal'
+        placements = Counter(list(np.random.randint(1, root_events+1, size=num_pseudonormal)))
+        ps_keys = sorted(list(placements.keys()))
+
+        psnorm_root.events = [None for i in range(ps_keys[0])]
+        for i in range(placements[ps_keys[0]]):
+            n = Node()
+            n.set_type('pseudonormal')
+            psnorm_root.set_child(n)
+
+        cur_node = psnorm_root
+        cur_mut = ps_keys[0]
+        for k in ps_keys[1:]:
+            next_int = Node()
+            next_int.cell_type = 'pseudonormal'
+            next_int.events = [None for i in range(k - cur_mut)]
+            cur_mut = k
+            for i in range(placements[k]):
+                n = Node()
+                n.cell_type = 'pseudonormal'
+                next_int.set_child(n)
+            cur_node.set_child(next_int)
+            cur_node = next_int
+        tree.root.events = [None for i in range(root_events - cur_mut)]
+
+    # Make updates to the tree structure accordingly
+    tree.set_founder(tree.root)
+    if num_normal > 0 and num_pseudonormal == 0:
+        norm_root.set_child(tree.root)
+        tree.root = norm_root
+    elif num_normal == 0 and num_pseudonormal > 0:
+        cur_node.set_child(tree.root)
+        tree.root = psnorm_root
+    elif num_normal > 0 and num_pseudonormal > 0:
+        norm_root.set_child(psnorm_root)
+        cur_node.set_child(tree.root)
+        tree.root = norm_root
+    else:
+        tree.root.events = [None for i in range(root_events)]
+
+    return tree
+
+def select_clones(tree, num_clones):
+    ancestral_aneuploids = {}
+    for node in tree.founder.iter_descendants():
+        if not node == tree.founder and not node.is_leaf():
+            ancestral_aneuploids[node] = len(node)
+
+    (nodes, sizes) = zip(*ancestral_aneuploids.items())
+    nodes, sizes = list(nodes), list(sizes)
+    scaled_sizes = [x/sum(sizes) for x in sizes]
+    
+    clone_founders = np.random.choice(nodes, num_clones, p=scaled_sizes)
+    for clone in clone_founders:
+        clone.cell_type = 'clone'
+    #return clone_founders

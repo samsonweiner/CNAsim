@@ -9,22 +9,24 @@ def read_fasta(input_fasta):
         chrom_lens[chrom] = len(ref[chrom])
     return ref, chrom_lens
 
-def build_cell_ref(genome, ref, min_cn_len, allele, prefix):
+def build_cell_ref(genome, ref, chrom_names, regions_per_chrom, min_cn_len, allele, prefix):
     ref_name = prefix + '_allele' + str(allele) + '.fa'
     chrom_lens = {}
     f = open(ref_name, 'w+')
-    for chrom in ref.keys():
+    for chrom in chrom_names:
         chrom_lens[chrom] = 0
-        num_regions = round(len(ref[chrom])/min_cn_len)
+        num_regions = regions_per_chrom[chrom]
         f.write('>' + chrom + '\n')
-
-        for r in genome[chrom][allele]:
-            if r == num_regions - 1:
-                f.write(ref[chrom][r*min_cn_len:].seq)
-                chrom_lens[chrom] += len(ref[chrom][r*min_cn_len:].seq)
-            else:
-                f.write(ref[chrom][r*min_cn_len:(r+1)*min_cn_len].seq)
-                chrom_lens[chrom] += min_cn_len
+        for homolog in genome[chrom][allele]:
+            while 'X' in homolog:
+                homolog.remove('X')
+            for r in homolog:
+                if r == num_regions - 1:
+                    f.write(ref[chrom][r*min_cn_len:].seq)
+                    chrom_lens[chrom] += len(ref[chrom][r*min_cn_len:].seq)
+                else:
+                    f.write(ref[chrom][r*min_cn_len:(r+1)*min_cn_len].seq)
+                    chrom_lens[chrom] += min_cn_len
         f.write('\n')
     f.close()
     call = subprocess.run(['samtools', 'faidx', ref_name])

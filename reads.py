@@ -96,8 +96,8 @@ def gen_coverage(num_windows, interval, Aa, Bb):
     return new_points
 
 # Draw readcounts for each bin
-def draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, readlen):
-    avg_read = (coverage*window_size) / readlen
+def draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_len):
+    avg_read = (coverage*window_size) / (2*read_len)
     cov_scales = gen_coverage(num_windows, interval, Aa, Bb)
     exp_counts = [2*avg_read*x for x in cov_scales]
     readcounts = [np.random.poisson(x) for x in exp_counts]
@@ -105,13 +105,16 @@ def draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, readle
 
 
 # Generate reads across the genome for a given cell
-def gen_reads_cell(cell, ref, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, readlen):
+def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, read_len, out_path):
+    
+    print('Generating reads for:', cell.name)
+    prefix = os.path.join(out_path, cell.name)
     for allele in [0, 1]:
-        cell_ref, chrom_lens = build_cell_ref(cell.genome, ref, min_cn_len, allele, cell.name)
+        cell_ref, chrom_lens = build_cell_ref(cell.genome, ref, chrom_names, num_regions, min_cn_len, allele, prefix)
         init = False
         for chrom in chrom_names:
             num_windows = round(chrom_lens[chrom] / window_size)
-            readcounts = draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, readlen)
+            readcounts = draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_len)
             for w in range(num_windows):
                 start = w * window_size + 1
                 if w == num_windows - 1:
@@ -123,7 +126,7 @@ def gen_reads_cell(cell, ref, chrom_names, min_cn_len, window_size, interval, Aa
                 with open(region_fa_path, 'w+') as f:
                     call = subprocess.run(['samtools', 'faidx', cell_ref, chrom + ':' + str(start) + '-' + str(end)], stdout=f)
 
-                proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(readcounts[w]), '-1', str(readlen), '-2', str(readlen), region_fa_path, region_fa_path[:-3]])
+                proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(readcounts[w]), '-1', str(read_len), '-2', str(read_len), region_fa_path, region_fa_path[:-3]])
                 if not init:
                     os.rename(region_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
                     os.rename(region_fa_path[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
@@ -136,10 +139,19 @@ def gen_reads_cell(cell, ref, chrom_names, min_cn_len, window_size, interval, Aa
                     os.remove(region_fa_path[:-3] + '.bwa.read2.fastq.gz')
                 os.remove(region_fa_path)
                 os.remove(region_fa_path[:-3] + '.mutations.txt')
-                os.remove(region_fa_path[:-3] + '.mutations.vcf') 
+                os.remove(region_fa_path[:-3] + '.mutations.vcf')
         os.remove(cell_ref)
         os.remove(cell_ref + '.fai')
+    with open(prefix + '.read1.fastq.gz', 'w+') as f1, open(prefix + '.read2.fastq.gz', 'w+') as f2:
+        call = subprocess.run(['cat', prefix + '_allele0.read1.fastq.gz', prefix + '_allele1.read1.fastq.gz'], stdout=f1)
+        call = subprocess.run(['cat', prefix + '_allele0.read2.fastq.gz', prefix + '_allele1.read2.fastq.gz'], stdout=f2)
+    os.remove(prefix + '_allele0.read1.fastq.gz')
+    os.remove(prefix + '_allele1.read1.fastq.gz')
+    os.remove(prefix + '_allele0.read2.fastq.gz')
+    os.remove(prefix + '_allele1.read2.fastq.gz')
 
 # Generate reads for all cells
-def gen_reads(ref_regions, tree, x0, y0, interval, window, coverage, readlen):
+def gen_reads(ref, num_regions, chrom_names, tree, x0, y0, min_cn_len, interval, window_size, coverage, read_len):
     [Aa, Bb] = get_alpha_beta(x0, y0)
+    for cell in tree.iter_leaves():
+        gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, read_len)

@@ -1,9 +1,12 @@
 import argparse
 import os
 import time
+import sys
 
 from tree import *
 from sim_genomes import *
+from sequence import *
+from reads import *
 from noise import *
 from format_profiles import *
 from utilities import *
@@ -11,38 +14,55 @@ from utilities import *
 def parse_args():
     #Arguments
     parser = argparse.ArgumentParser()
+    parser.add_argument('-m', '--mode', type=int, default=1, help='Main simulator mode for generating data. 0: CNP data, 1: read data')
     parser.add_argument('-o', '--out-path', type=str, default='/', help='Path to output directory.')
-    parser.add_argument('-t', '--tree-type', type=int, default=0, help='0: ms, 1: random, 2: from file (replace ms-path)')
-    parser.add_argument('-s', '--growth-rate', type=float, default=15.1403, help='Exponential growth rate for ms.')
-    parser.add_argument('-f', '--ms-path', type=str, default='../../msdir/ms', help='Path to ms binary.')
+    parser.add_argument('-t', '--tree-type', type=int, default=0, help='0: ms, 1: random, 2: from file (use -T to specify file path).')
+    parser.add_argument('-T', '--tree-path', type=str, default='', help='Path to input tree.')
+    parser.add_argument('-g', '--growth-rate', type=float, default=15.1403, help='Exponential growth rate for ms.')
+    parser.add_argument('-f', '--ms-path', type=str, default='ms', help='Path to ms binary.')
     parser.add_argument('-n', '--num-cells', type=int, default=250, help='Number of observed cells in sample.')
-    parser.add_argument('-p', '--placement-type', type=int, default=0, help='0: draw from a Poisson with fixed mean, 1: draw from a Poisson with mean prop to edge length, 2: fixed per edge')
-    parser.add_argument('-c', '--placement-param', type=float, default=2, help='Parameter for placement choice.')
-    parser.add_argument('-e', '--min-cn-length', type=int, default=1000, help='Minimum copy number event length in bp.')
+    parser.add_argument('-n1', '--normal-fraction', type=float, default=0, help='Proportion of cells that are normal.')
+    parser.add_argument('-n2', '--pseudonormal-fraction', type=float, default=0, help='Proportion of cells that are pseudonormal cells.')
+    parser.add_argument('-c', '--num_clones', type=int, default=0, help='Number of ancestral nodes to select as clonal founders.')
+    parser.add_argument('-p1', '--placement-type', type=int, default=0, help='0: draw from a Poisson with fixed mean, 1: draw from a Poisson with mean prop to edge length, 2: fixed per edge')
+    parser.add_argument('-p2', '--placement-param', type=float, default=2, help='Parameter for placement choice.')
+    parser.add_argument('-k', '--min-cn-length', type=int, default=1000, help='Minimum copy number event length in bp.')
     parser.add_argument('-l', '--cn-length-mean', type=int, default=5000000, help='Mean copy number event length in bp.')
-    parser.add_argument('-m', '--cn-copy-param', type=float, default=0.5, help='Parameter in the geometric to select number of copies.')
-    parser.add_argument('-g', '--cn-event-rate', type=float, default=0.5, help='Probability an event is an amplification. Deletion rate is 1 - amp rate.')
-    parser.add_argument('-r', '--root-event-mult', type=int, default=10, help='Multiplier for the number of events along edge into founder cell.')
-    parser.add_argument('-w', '--whole-genome-dup', action='store_true', help='Include WGD.')
-    parser.add_argument('-v', '--whole-chrom-event', action='store_true', help='Include whole chromosomal alterations.')
-    parser.add_argument('-i', '--whole-chrom-rate', type=float, default=0.2, help='Probability that a chromosome is affected by a whole chrom event.')
-    parser.add_argument('-u', '--whole-chrom-type', type=float, default=0.5, help='Probability that a whole chrom event is an amplification.')
-    parser.add_argument('-q', '--whole-chrom-copy', type=float, default=0.8, help='Parameter in the geometric to select the number of copies for whole chrom events.')
-    parser.add_argument('-x', '--num-chromosomes', type=int, default=22, help='Number of chromosomes.')
-    parser.add_argument('-y', '--chrom-length', type=int, default=100000000, help='Length of chromosomes in bp.')
-    parser.add_argument('-z', '--use-hg38-lengths', action='store_true', help='Use hg38 chromosome lengths.')
-    parser.add_argument('-b', '--bin-length', type=int, default=5000000, help='Resolution of copy number profiles in bp.')
-    parser.add_argument('-a', '--error-type', type=int, default=0, help='0: none, 1: simple, 2: normal, 3: boundary, 4: sequence, 5: mixed')
-    parser.add_argument('-a1', '--error-rate-1', type=float, default=0, help='Primary parameter for introducing error.')
-    parser.add_argument('-a2', '--error-rate-2', type=float, default=0, help='Secondary parameter for introducing error.')
+    parser.add_argument('-a', '--cn-copy-param', type=float, default=0.5, help='Parameter in the geometric to select number of copies.')
+    parser.add_argument('-s', '--cn-event-rate', type=float, default=0.5, help='Probability an event is an amplification. Deletion rate is 1 - amp rate.')
+    parser.add_argument('-j', '--root-event-mult', type=int, default=10, help='Multiplier for the number of events along edge into founder cell.')
+
+    parser.add_argument('-w', '--WGD', action='store_true', help='Include WGD.')
+    parser.add_argument('-v', '--chrom-level-event', action='store_true', help='Include whole chromosomal alterations.')
+    parser.add_argument('-q', '--chrom-arm-rate', type=float, default=0.7, help='Probability that a chromosomal event is a chromosome-arm event.')
+    parser.add_argument('-i1', '--chrom-rate-root', type=int, default=2, help='Parameter in poisson for number of chrom-level events along the edges into and out of the founder cell.')
+    parser.add_argument('-i2', '--chrom-rate-clone', type=int, default=1.5, help='Parameter in poisson for number of chrom-level events for clonal nodes.')
+    parser.add_argument('-u', '--chrom-event-type', type=float, default=0.2, help='Probability that a whole chrom event is an amplification.')
+
+    parser.add_argument('-N', '--num-chromosomes', type=int, default=22, help='Number of chromosomes.')
+    parser.add_argument('-L', '--chrom-length', type=int, default=100000000, help='Length of chromosomes in bp.')
+    parser.add_argument('-A', '--chrom-arm-ratio', type=float, default=0.5, help='If fixed size chromosomes, ratio of length within the p-arm.')
+    parser.add_argument('-B', '--bin-length', type=int, default=5000000, help='Resolution of copy number profiles in bp.')
+    parser.add_argument('-E1', '--error-rate-1', type=float, default=0, help='Error rate for the boundary model.')
+    parser.add_argument('-E2', '--error-rate-2', type=float, default=0, help='Error rate for the jitter model.')
+    parser.add_argument('-U', '--use-hg38-static', action='store_true', help='Use hg38 chromosome information.')
+
+    parser.add_argument('-r', '--reference', type=str, default='', help='Path to input reference genome in fasta format.')
+    parser.add_argument('-X', '--lorenz-x', type=float, default=0.5, help='x-coordinate for point on lorenz curve')
+    parser.add_argument('-Y', '--lorenz-y', type=float, default=0.4, help='y-coordinate for point on lorenz curve')
+    parser.add_argument('-W', '--window-size', type=int, default=1000000, help='Number of base pairs to generate reads for in each iteration.')
+    parser.add_argument('-I', '--interval', type=int, default=3, help='Initializes a point in the coverage distribution every interval number of windows.')
+    parser.add_argument('-C', '--coverage', type=float, default=0.1, help='Average sequencing coverage across the genome.')
+    parser.add_argument('-R', '--read-length', type=int, default=35, help='Paired-end short read length.')
+
     parser.add_argument('-d', '--summary', action='store_true', help='Summarize simulation statistics.')
-    parser.add_argument('-k', '--param-file', type=str, default=None, help='Optional parameter file.')
+    parser.add_argument('-F', '--param-file', type=str, default=None, help='Optional parameter file.')
     arguments = parser.parse_args()
 
     return handle_args(arguments)
 
 def main(args):
-    #Output dir
+    # Initialize output directory
     print('Output directory', os.path.abspath(args['out_path']))
     if not os.path.isdir(args['out_path']):
         os.makedirs(args['out_path'])
@@ -55,45 +75,80 @@ def main(args):
 
     #Create tree structure
     print('Preparing ground truth tree...')
-    if args['tree_type'] == 0:
-        tree_str = call_ms(args['ms_path'], args['num_cells'], args['out_path'], args['growth_rate'])
-        tree = Tree(newick=tree_str)
-        tree.set_node_names()
-        tree.save(os.path.join(args['out_path'], 'tree.nwk'), format=1)
+    root_events = args['placement_param'] * args['root_event_mult']
+    tree = make_tumor_tree(args['tree_type'], args['num_cells'], args['normal_fraction'], args['pseudonormal_fraction'], root_events, args['out_path'], args['ms_path'], args['growth_rate'], args['tree_path'])
+    if args['num_clones'] > 0:
+        select_clones(tree, args['num_clones'])
+    tree.set_node_names()
+    tree.save(os.path.join(args['out_path'], 'tree.nwk'), format=3)
 
-    elif args['tree_type'] == 1:
-        tree = gen_random_topology(args['num_cells'])
-        tree.set_node_names()
-        tree.save(os.path.join(args['out_path'], 'tree.nwk'))
-    
-    else:
-        f1 = open(args['ms_path'])
-        tree_str = f1.readline().strip()
-        f1.close()
-        tree = Tree(newick=tree_str)
-        tree.set_node_names()
-        tree.save(os.path.join(args['out_path'], 'tree.nwk'), format=1)
+    record_cell_types(tree, os.path.join(args['out_path'], 'cell_types.tsv'))
+
+    if args['placement_type'] == 1:
+        scale_edge_lengths(tree, args['placement_param'])
 
     #Simulate evolution
     print('Generating genomes, events, and profiles...')
-    chrom_names = ['chr' + str(i+1) for i in range(args['num_chroms'])]
-    normal_diploid_genome = init_diploid_genome(args['min_cn_length'], chrom_names, args['chrom_length'], args['use_hg38_lengths'])
-    bins = gen_profiles(args, tree, chrom_names, normal_diploid_genome)
+    if args['use_hg38_static']:
+        chrom_lens, arm_ratios = hg38_chrom_lengths_from_cytoband('resources/cytoBand.txt', include_allosomes=False, include_arms=True)
+    
+    if args['mode'] == 1:
+        ref, ref_chrom_lens = read_fasta(args['reference'])
+        ref_chrom_lens.pop('chrX', None)
+        ref_chrom_lens.pop('chrY', None)
 
-    #Format and output profiles
-    print('Formating and saving profiles')
-    if args['error_type'] != 0:
-        save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
-        choose_noise_model(args['error_type'], tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
-    save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'profiles.tsv'))
+        chrom_names = list(ref_chrom_lens.keys())
+        [Aa, Bb] = get_alpha_beta(args['lorenz_x'], args['lorenz_y'])
+
+        if args['use_hg38_static']:
+            normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, ref_chrom_lens, arm_ratios)
+        else:
+            normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, ref_chrom_lens, args['chrom_arm_ratio'])
+        tree.root.genome = normal_diploid_genome
+        #print(get_size(tree.root.genome))
+
+        evolve_tree(tree.root, args, chrom_names, num_regions, ref=ref, Aa=Aa, Bb=Bb)
+
+
+    # CNP mode
+    if args['mode'] == 0:
+        chrom_names = ['chr' + str(i+1) for i in range(args['num_chroms'])]
+        if args['use_hg38_static']:
+            normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, chrom_lens, arm_ratios)
+        else:
+            normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, args['chrom_length'], args['chrom_arm_ratio'])
+        tree.root.genome = copy.deepcopy(normal_diploid_genome)
+
+        regions_per_bin = np.floor(args['bin_length']/args['min_cn_length'])
+        bins = {}
+        for chrom in chrom_names:
+            bins[chrom] = [k for k in init_genome[chrom][0] if k % regions_per_bin == 0]
+            bins[chrom][-1] = init_genome[chrom][0][-1]
+        evolve_tree(tree.root, args, chrom_names, num_regions, bins=bins)
+        #for node in tree.iter_postorder():
+        #    if not node.is_root():
+        #        node.inheret()
+        #    if not node.cell_type == 'normal':
+        #        mutate_genome(node, args, chrom_names)
+        #    if node.is_leaf():
+        #        format_profile(node, chrom_names, num_regions, bins)
+        #    del node.genome
+
+        #Format and output profiles
+        print('Formating and saving profiles')
+        if args['error_type'] != 0:
+            save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
+            choose_noise_model(args['error_type'], tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
+        save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'profiles.tsv'))
 
     #Log summary stats and execution time
     total_time = round(time.time() - start)
     log.write('\nTime: ' + str(total_time) + '\n')
     log.close()
-    if args['summary']:
-        summary(tree, os.path.join(args['out_path'], 'summary.txt'), args['num_chroms'], args['WGD'], args['min_cn_length'])
-
+    #if args['summary']:
+        #summary(tree, os.path.join(args['out_path'], 'summary.txt'), args['num_chroms'], args['WGD'], args['min_cn_length'])
+    if args['mode'] == 0 or args['mode'] == 1:
+        record_events(tree, os.path.join(args['out_path'], 'events.tsv'))
 
 if __name__ == '__main__':
     args = parse_args()

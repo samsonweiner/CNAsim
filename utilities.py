@@ -1,4 +1,5 @@
 import os
+import sys
 
 class CustomError(Exception):
     pass
@@ -51,38 +52,12 @@ def handle_args(arguments):
                 args[param] = convert(val)
 
     else:
-        args = {
-            'out_path': arguments.out_path,
-            'tree_type': arguments.tree_type,
-            'growth_rate': arguments.growth_rate,
-            'ms_path': arguments.ms_path,
-            'num_cells': arguments.num_cells,
-            'placement_type': arguments.placement_type,
-            'placement_param': arguments.placement_param,
-            'min_cn_length': arguments.min_cn_length,
-            'cn_length_mean': arguments.cn_length_mean,
-            'cn_copy_param': arguments.cn_copy_param,
-            'cn_event_rate': arguments.cn_event_rate,
-            'root_event_mult': arguments.root_event_mult,
-            'WGD': arguments.whole_genome_dup,
-            'whole_chrom_event': arguments.whole_chrom_event,
-            'whole_chrom_rate': arguments.whole_chrom_rate,
-            'whole_chrom_type': arguments.whole_chrom_type,
-            'whole_chrom_copy': arguments.whole_chrom_copy,
-            'num_chroms': arguments.num_chromosomes,
-            'chrom_length': arguments.chrom_length,
-            'use_hg38_lengths': arguments.use_hg38_lengths,
-            'bin_length': arguments.bin_length,
-            'error_type': arguments.error_type,
-            'error_rate_1': arguments.error_rate_1,
-            'error_rate_2': arguments.error_rate_2,
-            'summary': arguments.summary
-        }
+        args = vars(arguments)
     return args
 
 #gets chromosome and arm lengths from cytoband file
 def hg38_chrom_lengths_from_cytoband(file_path, include_allosomes=False, include_arms=False):
-    chrom_lens = {}
+    chrom_lens, arm_ratios = {}, {}
 
     f = open(file_path)
     lines = f.readlines()
@@ -100,11 +75,13 @@ def hg38_chrom_lengths_from_cytoband(file_path, include_allosomes=False, include
         del chrom_lens['chrY']
 
     for chrom in chrom_lens:
-        chrom_lens[chrom]['q'] = chrom_lens[chrom]['q'] - chrom_lens[chrom]['p']
-        if not include_arms:
-            chrom_lens[chrom] = chrom_lens[chrom]['q'] + chrom_lens[chrom]['p']
+        arm_ratios[chrom] = chrom_lens[chrom]['p'] / chrom_lens[chrom]['q']
+        chrom_lens[chrom] = chrom_lens[chrom]['q']
 
-    return chrom_lens
+    if include_arms:
+        return chrom_lens, arm_ratios
+    else:
+        return chrom_lens
 
 # Summary sim stats 
 def summary(tree, out_path, num_chroms, WGD, min_cn_length):
@@ -192,5 +169,36 @@ def summary(tree, out_path, num_chroms, WGD, min_cn_length):
     '''
     f.close()
 
-def read_fasta(ref_path):
-    pass
+def record_cell_types(tree, out_path):
+    f = open(out_path, 'w+')
+    for n in tree.iter_descendants():
+        f.write(n.name + '\t' + n.cell_type + '\n')
+    f.close()
+
+def record_events(tree, out_path):
+    f = open(out_path, 'w+')
+    f.write('\t'.join(['node', 'category', 'chrom', 'allele', 'homolog', 'arm', 'start', 'length', 'event', 'copies']) + '\n')
+    for n in tree.iter_descendants():
+        for e in n.events:
+            f.write('\t'.join([str(x) for x in [n.name, e.category, e.chrom, e.allele, e.homolog, e.arm, e.start, e.length, e.event, e.copies]]) + '\n')
+    f.close()
+
+def get_size(obj, seen=None):
+    """Recursively finds size of objects"""
+    size = sys.getsizeof(obj)
+    if seen is None:
+        seen = set()
+    obj_id = id(obj)
+    if obj_id in seen:
+        return 0
+    # Important mark as seen *before* entering recursion to gracefully handle
+    # self-referential objects
+    seen.add(obj_id)
+    if isinstance(obj, dict):
+        size += sum([get_size(v, seen) for v in obj.values()])
+        size += sum([get_size(k, seen) for k in obj.keys()])
+    elif hasattr(obj, '__dict__'):
+        size += get_size(obj.__dict__, seen)
+    elif hasattr(obj, '__iter__') and not isinstance(obj, (str, bytes, bytearray)):
+        size += sum([get_size(i, seen) for i in obj])
+    return size
