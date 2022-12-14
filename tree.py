@@ -230,7 +230,7 @@ class Tree:
                 if node.cell_type == 'founder':
                     node.name = 'founder'
                 else:
-                    node.name = 'ancester' + str(internalcount)
+                    node.name = 'ancestor' + str(internalcount)
                     internalcount += 1
         self.cell_names = [node.name for node in self.iter_leaves()]
 
