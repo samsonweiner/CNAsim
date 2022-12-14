@@ -25,37 +25,35 @@ def add_noise_simple(tree, chrom_names, err_rate):
                             else:
                                 leaf.profile[chrom][allele][b] -= 1
 
-def add_noise_normal(tree, chrom_names, err_rate):
-    for leaf in tree.iter_leaves():
-        for chrom in chrom_names:
-            for allele in [0, 1]:
-                for b in range(len(leaf.profile[chrom][allele])):
-                    leaf.profile[chrom][allele][b] = round(np.random.normal(leaf.profile[chrom][allele][b], err_rate*leaf.profile[chrom][allele][b]))
+def add_noise_normal(leaf, chrom_names, err_rate):
+    for chrom in chrom_names:
+        for allele in [0, 1]:
+            for b in range(len(leaf.profile[chrom][allele])):
+                leaf.profile[chrom][allele][b] = round(np.random.normal(leaf.profile[chrom][allele][b], err_rate*leaf.profile[chrom][allele][b]))
 
-def add_noise_boundary(tree, chrom_names, err_rate):
-    for leaf in tree.iter_leaves():
-        for chrom in chrom_names:
-            for allele in [0, 1]:
-                profile = leaf.profile[chrom][allele]
-                i, seg_length = 1, 1
-                prev_num = profile[0]
-                while i < len(profile):
-                    if profile[i] != prev_num:
-                        new_length = max(round(np.random.normal(seg_length, seg_length*err_rate)), 1)
-                        if new_length <= seg_length:
-                            for j in range(i - seg_length + new_length, i):
-                                profile[j] = profile[i]
-                            seg_length = 1
-                            prev_num = profile[i]
-                            i += 1
-                        else:
-                            for j in range(i, min(i + new_length - seg_length, len(profile))):
-                                profile[j] = prev_num
-                            seg_length = 1
-                            i += new_length - seg_length
-                    else:
-                        seg_length += 1
+def add_noise_boundary(leaf, chrom_names, err_rate):
+    for chrom in chrom_names:
+        for allele in [0, 1]:
+            profile = leaf.profile[chrom][allele]
+            i, seg_length = 1, 1
+            prev_num = profile[0]
+            while i < len(profile):
+                if profile[i] != prev_num:
+                    new_length = max(round(np.random.normal(seg_length, seg_length*err_rate)), 1)
+                    if new_length <= seg_length:
+                        for j in range(i - seg_length + new_length, i):
+                            profile[j] = profile[i]
+                        seg_length = 1
+                        prev_num = profile[i]
                         i += 1
+                    else:
+                        for j in range(i, min(i + new_length - seg_length, len(profile))):
+                            profile[j] = prev_num
+                        seg_length = 1
+                        i += new_length - seg_length
+                else:
+                    seg_length += 1
+                    i += 1
 
 def add_noise_sequence(tree, chrom_names, cov_rate, dub_rate):
     #select doublets
@@ -89,6 +87,13 @@ def add_noise_sequence(tree, chrom_names, cov_rate, dub_rate):
                     elif coverage > 1:
                         scale = 1 + (coverage*cov_rate)
                         profile[i] = round(copy_num*scale)
+
+# Jitter and boundary model combined
+def add_noise_mixed(tree, chrom_names, boundary_err_rate, jitter_err_rate):
+    for leaf in tree.iter_leaves():
+        if leaf.cell_type != 'normal':
+            add_noise_boundary(leaf, chrom_names, boundary_err_rate)
+            add_noise_normal(leaf, chrom_names, jitter_err_rate)
 
 
 def bezier_coef(points):

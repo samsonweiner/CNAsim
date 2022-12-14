@@ -14,7 +14,7 @@ from utilities import *
 def parse_args():
     #Arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode', type=int, default=1, help='Main simulator mode for generating data. 0: CNP data, 1: read data')
+    parser.add_argument('-m', '--mode', type=int, default=0, help='Main simulator mode for generating data. 0: CNP data, 1: read data')
     parser.add_argument('-o', '--out-path', type=str, default='/', help='Path to output directory.')
     parser.add_argument('-t', '--tree-type', type=int, default=0, help='0: ms, 1: random, 2: from file (use -T to specify file path).')
     parser.add_argument('-T', '--tree-path', type=str, default='', help='Path to input tree.')
@@ -106,37 +106,34 @@ def main(args):
         tree.root.genome = normal_diploid_genome
 
         evolve_tree(tree.root, args, chrom_names, num_regions)
+
+        print('Generating reads')
         gen_reads(ref, num_regions, chrom_names, tree, args['lorenz_x'], args['lorenz_y'], args['min_cn_length'], args['interval'], args['window_size'], args['coverage'], args['read_length'], args['out_path'], args['processors'])
 
     # CNP mode
     if args['mode'] == 0:
-        chrom_names = ['chr' + str(i+1) for i in range(args['num_chroms'])]
+        chrom_names = ['chr' + str(i+1) for i in range(args['num_chromosomes'])]
         if args['use_hg38_static']:
             normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, chrom_lens, arm_ratios)
         else:
             normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, args['chrom_length'], args['chrom_arm_ratio'])
-        tree.root.genome = copy.deepcopy(normal_diploid_genome)
+        tree.root.genome = normal_diploid_genome
 
         regions_per_bin = np.floor(args['bin_length']/args['min_cn_length'])
         bins = {}
         for chrom in chrom_names:
-            bins[chrom] = [k for k in init_genome[chrom][0] if k % regions_per_bin == 0]
-            bins[chrom][-1] = init_genome[chrom][0][-1]
+            bins[chrom] = [k for k in range(num_regions[chrom]) if k % regions_per_bin == 0]
+            if (num_regions[chrom] - 1) - bins[chrom][-1] < regions_per_bin/2:
+                bins[chrom][-1] = num_regions[chrom]
+            else:
+                bins[chrom].append(num_regions[chrom])
+            
         evolve_tree(tree.root, args, chrom_names, num_regions, bins=bins)
-        #for node in tree.iter_postorder():
-        #    if not node.is_root():
-        #        node.inheret()
-        #    if not node.cell_type == 'normal':
-        #        mutate_genome(node, args, chrom_names)
-        #    if node.is_leaf():
-        #        format_profile(node, chrom_names, num_regions, bins)
-        #    del node.genome
 
-        #Format and output profiles
         print('Formating and saving profiles')
-        if args['error_type'] != 0:
-            save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
-            choose_noise_model(args['error_type'], tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
+        if args['error_rate_1'] != 0 or args['error_rate_2'] != 0:
+            #save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
+            add_noise_mixed(tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
         save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'profiles.tsv'))
 
     #Log summary stats and execution time

@@ -447,16 +447,23 @@ def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_e
     return tree
 
 def select_clones(tree, num_clones):
-    ancestral_aneuploids = {}
+    #ancestral_aneuploids = {}
+    ancestral_aneuploids = []
     for node in tree.founder.iter_descendants():
-        if not node == tree.founder and not node.is_leaf():
-            ancestral_aneuploids[node] = len(node)
+        if not node == tree.founder and not node.is_leaf() and not node.parent == tree.founder:
+            #ancestral_aneuploids[node] = node.length
+            ancestral_aneuploids.append(node)
 
-    (nodes, sizes) = zip(*ancestral_aneuploids.items())
-    nodes, sizes = list(nodes), list(sizes)
-    scaled_sizes = [x/sum(sizes) for x in sizes]
+    #(nodes, sizes) = zip(*ancestral_aneuploids.items())
+    #nodes, sizes = list(nodes), list(sizes)
+    #scaled_sizes = [x/sum(sizes) for x in sizes]
     
-    clone_founders = np.random.choice(nodes, num_clones, p=scaled_sizes)
+    #clone_founders = np.random.choice(nodes, num_clones, p=scaled_sizes)
+
+    ancestral_aneuploids.sort(key = lambda x: x.length, reverse=True)
+    clone_founders = ancestral_aneuploids[:num_clones]
+
     for clone in clone_founders:
         clone.cell_type = 'clone'
+
     #return clone_founders
