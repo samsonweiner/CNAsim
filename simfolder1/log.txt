@@ -1,0 +1,42 @@
+mode: 0
+out_path: simfolder1
+tree_type: 0
+tree_path: 
+growth_rate: 15.1403
+ms_path: ms
+num_cells: 50
+normal_fraction: 0
+pseudonormal_fraction: 0
+num_clones: 2
+placement_type: 0
+placement_param: 2
+min_cn_length: 10000
+cn_length_mean: 5000000
+cn_copy_param: 0.5
+cn_event_rate: 0.5
+root_event_mult: 10
+WGD: False
+chrom_level_event: True
+chrom_arm_rate: 0.75
+chrom_rate_root: 2
+chrom_rate_clone: 2
+chrom_event_type: 0.5
+num_chromosomes: 22
+chrom_length: 100000000
+chrom_arm_ratio: 0.5
+bin_length: 1000000
+error_rate_1: 0
+error_rate_2: 0
+use_hg38_static: True
+reference: 
+lorenz_x: 0.5
+lorenz_y: 0.4
+window_size: 1000000
+interval: 3
+coverage: 0.1
+read_length: 35
+processors: 1
+summary: False
+param_file: None
+
+Time: 13

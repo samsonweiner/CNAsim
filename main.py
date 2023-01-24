@@ -23,21 +23,21 @@ def parse_args():
     parser.add_argument('-n', '--num-cells', type=int, default=250, help='Number of observed cells in sample.')
     parser.add_argument('-n1', '--normal-fraction', type=float, default=0, help='Proportion of cells that are normal.')
     parser.add_argument('-n2', '--pseudonormal-fraction', type=float, default=0, help='Proportion of cells that are pseudonormal cells.')
-    parser.add_argument('-c', '--num_clones', type=int, default=0, help='Number of ancestral nodes to select as clonal founders.')
+    parser.add_argument('-c', '--num-clones', type=int, default=0, help='Number of ancestral nodes to select as clonal founders.')
     parser.add_argument('-p1', '--placement-type', type=int, default=0, help='0: draw from a Poisson with fixed mean, 1: draw from a Poisson with mean prop to edge length, 2: fixed per edge')
     parser.add_argument('-p2', '--placement-param', type=float, default=2, help='Parameter for placement choice.')
     parser.add_argument('-k', '--min-cn-length', type=int, default=1000, help='Minimum copy number event length in bp.')
     parser.add_argument('-l', '--cn-length-mean', type=int, default=5000000, help='Mean copy number event length in bp.')
     parser.add_argument('-a', '--cn-copy-param', type=float, default=0.5, help='Parameter in the geometric to select number of copies.')
     parser.add_argument('-s', '--cn-event-rate', type=float, default=0.5, help='Probability an event is an amplification. Deletion rate is 1 - amp rate.')
-    parser.add_argument('-j', '--root-event-mult', type=int, default=10, help='Multiplier for the number of events along edge into founder cell.')
+    parser.add_argument('-j', '--founder-event-mult', type=int, default=10, help='Multiplier for the number of events along edge into founder cell.')
 
     parser.add_argument('-w', '--WGD', action='store_true', help='Include WGD.')
     parser.add_argument('-v', '--chrom-level-event', action='store_true', help='Include whole chromosomal alterations.')
-    parser.add_argument('-q', '--chrom-arm-rate', type=float, default=0.7, help='Probability that a chromosomal event is a chromosome-arm event.')
-    parser.add_argument('-i1', '--chrom-rate-root', type=int, default=2, help='Parameter in poisson for number of chrom-level events along the edges into and out of the founder cell.')
+    parser.add_argument('-q', '--chrom-arm-rate', type=float, default=0.75, help='Probability that a chromosomal event is a chromosome-arm event.')
+    parser.add_argument('-i1', '--chrom-rate-founder', type=int, default=2, help='Parameter in poisson for number of chrom-level events along the edges into and out of the founder cell.')
     parser.add_argument('-i2', '--chrom-rate-clone', type=int, default=1.5, help='Parameter in poisson for number of chrom-level events for clonal nodes.')
-    parser.add_argument('-u', '--chrom-event-type', type=float, default=0.2, help='Probability that a whole chrom event is an amplification.')
+    parser.add_argument('-u', '--chrom-event-type', type=float, default=0.5, help='Probability that a whole chrom event is a duplication.')
 
     parser.add_argument('-N', '--num-chromosomes', type=int, default=22, help='Number of chromosomes.')
     parser.add_argument('-L', '--chrom-length', type=int, default=100000000, help='Length of chromosomes in bp.')
@@ -54,7 +54,7 @@ def parse_args():
     parser.add_argument('-I', '--interval', type=int, default=3, help='Initializes a point in the coverage distribution every interval number of windows.')
     parser.add_argument('-C', '--coverage', type=float, default=0.1, help='Average sequencing coverage across the genome.')
     parser.add_argument('-R', '--read-length', type=int, default=35, help='Paired-end short read length.')
-    parser.add_argument('-P', '--processors', type=int, default=1, help='Number of processes to use for generating reads in parallel..')
+    parser.add_argument('-P', '--processors', type=int, default=1, help='Number of processes to use for generating reads in parallel.')
 
     parser.add_argument('-d', '--summary', action='store_true', help='Summarize simulation statistics.')
     parser.add_argument('-F', '--param-file', type=str, default=None, help='Optional parameter file.')
@@ -91,7 +91,9 @@ def main(args):
     #Simulate evolution
     print('Generating genomes, events, and profiles...')
     if args['use_hg38_static']:
-        chrom_lens, arm_ratios = hg38_chrom_lengths_from_cytoband('resources/cytoBand.txt', include_allosomes=False, include_arms=True)
+        file_path = os.path.realpath(__file__)
+        sim_dir_path, filename = os.path.split(file_path)
+        chrom_lens, arm_ratios = hg38_chrom_lengths_from_cytoband(os.path.join(sim_dir_path, 'resources/cytoBand.txt'), include_allosomes=False, include_arms=True)
     
     if args['mode'] == 1:
         ref, ref_chrom_lens = read_fasta(args['reference'])
