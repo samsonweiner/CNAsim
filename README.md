@@ -1,6 +1,6 @@
 # CNAsim
 
-Hippo is a cancer evolution simulator for generating single-cell data. There are two types of data that can be generated: realistic copy number data mimicing single-cell CNA detection algorithms, and sequencing reads generated from different single-cell sequencing platforms.
+CNAsim is a cancer evolution simulator for generating single-cell data. There are two types of data that can be generated: realistic copy number data mimicing single-cell CNA detection algorithms, and sequencing reads generated from different single-cell sequencing platforms.
 
 More information can be found in our paper, located here: [link to paper].
 
@@ -26,7 +26,7 @@ More information can be found in our paper, located here: [link to paper].
 
 # Installation
 
-Hippo is written in python and can run reliably on version 3.7 or later. You can download the source code by cloning this repository:
+CNAsim is written in python and can run reliably on version 3.7 or later. You can download the source code by cloning this repository:
 
 ```
 git clone 
@@ -34,7 +34,7 @@ git clone
 
 ### Python packages
 
-Hippo requires the installation of the following python packages:
+CNAsim requires the installation of the following python packages:
 * [Numpy](https://numpy.org/)
 * [Scipy](https://scipy.org/)
 * [Pyfaidx](https://github.com/mdshw5/pyfaidx)
@@ -47,8 +47,8 @@ pip install numpy scipy pyfaidx
 
 If you use conda, the pyfaidx needs to be installed form the `bioconda` channel. For best practices, create a new environment before installing. You can install the packages with
 ```
-conda create -n hippo
-conda activate hippo
+conda create -n CNAsim
+conda activate CNAsim
 
 conda config --env --add channels conda-forge 
 conda config --env --add channels bioconda
@@ -59,7 +59,7 @@ conda install -c bioconda pyfaidx
 
 ### External packages
 
-Additionally, Hippo requires that the following binaries are installed and configured on the environment.
+Additionally, CNAsim requires that the following binaries are installed and configured on the environment.
 * [samtools](http://www.htslib.org/download/) 
 * [ms](https://home.uchicago.edu/~rhudson1/source/mksamples.html)
 * [dwgsim](https://github.com/nh13/DWGSIM)
@@ -70,13 +70,13 @@ Not implemented.
 ```
 # Usage
 
-Hippo is run through the command line by simply calling 
+CNAsim is run through the command line by simply calling 
 
 ```
-python hippo.py 
+python main.py 
 ```
 
-Hippo consists of three phases: 1) Generate the cell lineage tree, 2) simulate genomes and mutations, and 3) generate single-cell data. The following documentation details the relevant parameters associated with each phase.
+CNAsim consists of three phases: 1) Generate the cell lineage tree, 2) simulate genomes and mutations, and 3) generate single-cell data. The following documentation details the relevant parameters associated with each phase.
 
 ### I/O and Utilities
 
@@ -152,11 +152,11 @@ Hippo consists of three phases: 1) Generate the cell lineage tree, 2) simulate g
 
 ### Stage 3
 
-* Hippo can either generate copy number data or sequencing data. This is controlled with the *mode* parameter. Option 0 is for the sequencing mode, and option 1 is for the copy number mode.
+* CNAsim can either generate copy number data or sequencing data. This is controlled with the *mode* parameter. Option 0 is for the sequencing mode, and option 1 is for the copy number mode.
 
    `-m, --mode` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Data generation mode. To generate sequencing data, use option 0. To generate copy number data, use option 1. Default: 0
 
-* Commands generating copy number data. Regions from the starting diploid genome are grouped into contiguous fixed size bins, the size of which is given by -B. The copy number of a bin from an observed cell is the average number of copies of all regions in that bin. Hippo also implements an error model meant to mimic the effects of noise from CNA detection methods on real sequencing data. The level of noise is controlled by two parameters, -E1 and -E2. The -E1 parameter controls the boundary model, which shortens or lengthens continuous copy number segments. The -E2 parameter controls the jitter model, which increases or decreases the value of each copy number independently. 
+* Commands generating copy number data. Regions from the starting diploid genome are grouped into contiguous fixed size bins, the size of which is given by -B. The copy number of a bin from an observed cell is the average number of copies of all regions in that bin. CNAsim also implements an error model meant to mimic the effects of noise from CNA detection methods on real sequencing data. The level of noise is controlled by two parameters, -E1 and -E2. The -E1 parameter controls the boundary model, which shortens or lengthens continuous copy number segments. The -E2 parameter controls the jitter model, which increases or decreases the value of each copy number independently. 
 
    `-B, --bin-length` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The bin length to use in the copy number profiles. Default: 1,000,000 bp
 
@@ -164,7 +164,7 @@ Hippo consists of three phases: 1) Generate the cell lineage tree, 2) simulate g
 
    `-E2, --error-rate-2` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The error rate used for adding random jitter in the copy number profiles. Default: 0
 
-* Commands for generating sequencing read data. When generating reads for an observed cell's genome, the genome is divided into non-overlapping windows with length given by -W. Hippo then makes a system call to *dwgsim* to generate reads for each window independently, allowing for varying read counts. The average read depth across the entire genome is given by -C, and is used to compute the expected read count of each window. The -I parameter controls at what interval a window draws an independent read depth from the coverage distribution. The read depths of windows inbetween each interval are smoothed out. Basically, smaller intervals results in more peaks and troughs, while larger intervals results in fewer peaks and troughs. The degree of read depth non-uniformity is given by a point on the lorenz curve, which can measure a wide variety of single-cell sequencing technologies. Generating whole genome read data can require a lot of computational resources, so there is the option to parallelize this step. This is recommended for larger datasets. 
+* Commands for generating sequencing read data. When generating reads for an observed cell's genome, the genome is divided into non-overlapping windows with length given by -W. CNAsim then makes a system call to *dwgsim* to generate reads for each window independently, allowing for varying read counts. The average read depth across the entire genome is given by -C, and is used to compute the expected read count of each window. The -I parameter controls at what interval a window draws an independent read depth from the coverage distribution. The read depths of windows inbetween each interval are smoothed out. Basically, smaller intervals results in more peaks and troughs, while larger intervals results in fewer peaks and troughs. The degree of read depth non-uniformity is given by a point on the lorenz curve, which can measure a wide variety of single-cell sequencing technologies. Generating whole genome read data can require a lot of computational resources, so there is the option to parallelize this step. This is recommended for larger datasets. 
 
    `-C, --coverage` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Sequencing coverage across the entire genome. Default: 0.1
 
@@ -182,7 +182,7 @@ Hippo consists of three phases: 1) Generate the cell lineage tree, 2) simulate g
 
 For a complete list of parameters, use the *--help* parameter.
 ```
-python hippo.py --help
+python main.py --help
 ```
 
 # A few demonstrations
@@ -190,25 +190,25 @@ python hippo.py --help
 ## 1. Quick experiment for obtaining copy number profiles of a single chromosome for 50 cells
 
 ```
-python hippoy.py -m 1 -n 50 -N 1  
+python main.py -m 1 -n 50 -N 1  
 ```
 
 ## 2. Mimicing whole-genome copy number profiles of 100 tumor cells with resolution and noise expected of Ginkgo/HMMcopy
 
 ```
-python hippo.py -m 1 -n 100 -U -B 500000 -E1 0.04 -E2 0.1
+python main.py -m 1 -n 100 -U -B 500000 -E1 0.04 -E2 0.1
 ```
 
 ## 3. Generating whole-genome sequencing reads of 100 tumor cells using MALBAC
 
 ```
-python hippo.py -m 0 -n 100 -r hg38.fa -U -C 25 -X 0.5 -Y 0.27 
+python main.py -m 0 -n 100 -r hg38.fa -U -C 25 -X 0.5 -Y 0.27 
 ```
 
 ## 4. Mimicing large-scale whole-genome 10x genomics breast cancer dataset with ultra-low coverage
 
 ```
-python hippo.py -m 0 -n 10000 -n1 0.4 -n2 0.05 -c 7 -p2 1 -r hg38.fa -U -w -v -u 0.2 -C 0.03
+python main.py -m 0 -n 10000 -n1 0.4 -n2 0.05 -c 7 -p2 1 -r hg38.fa -U -w -v -u 0.2 -C 0.03
 ```
 
 
