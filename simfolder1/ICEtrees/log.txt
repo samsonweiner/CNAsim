@@ -1,4 +1,0 @@
-Distance: 	euclidean
-Breakpoint: 	False
-Total copy numbers: 	False
-Time: 	1.032
