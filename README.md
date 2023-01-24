@@ -1,4 +1,4 @@
-# Hippo
+# CNAsim
 
 Hippo is a cancer evolution simulator for generating single-cell data. There are two types of data that can be generated: realistic copy number data mimicing single-cell CNA detection algorithms, and sequencing reads generated from different single-cell sequencing platforms.
 
