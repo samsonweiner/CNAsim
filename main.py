@@ -76,8 +76,8 @@ def main(args):
 
     #Create tree structure
     print('Preparing ground truth tree...')
-    root_events = args['placement_param'] * args['root_event_mult']
-    tree = make_tumor_tree(args['tree_type'], args['num_cells'], args['normal_fraction'], args['pseudonormal_fraction'], root_events, args['out_path'], args['ms_path'], args['growth_rate'], args['tree_path'])
+    founder_events = args['placement_param'] * args['founder_event_mult']
+    tree = make_tumor_tree(args['tree_type'], args['num_cells'], args['normal_fraction'], args['pseudonormal_fraction'], founder_events, args['out_path'], args['ms_path'], args['growth_rate'], args['tree_path'])
     if args['num_clones'] > 0:
         select_clones(tree, args['num_clones'])
     tree.set_node_names()
