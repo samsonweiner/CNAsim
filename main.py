@@ -10,6 +10,7 @@ from reads import *
 from noise import *
 from format_profiles import *
 from utilities import *
+from memory_profiler import profile
 
 def parse_args():
     #Arguments
@@ -48,12 +49,13 @@ def parse_args():
     parser.add_argument('-U', '--use-hg38-static', action='store_true', help='Use hg38 chromosome information.')
 
     parser.add_argument('-r', '--reference', type=str, default='', help='Path to input reference genome in fasta format.')
+    parser.add_argument('-M', '--use-uniform-coverage', action='store_true', help='Use uniform coverage across the genome.')
     parser.add_argument('-X', '--lorenz-x', type=float, default=0.5, help='x-coordinate for point on lorenz curve')
     parser.add_argument('-Y', '--lorenz-y', type=float, default=0.4, help='y-coordinate for point on lorenz curve')
     parser.add_argument('-W', '--window-size', type=int, default=1000000, help='Number of base pairs to generate reads for in each iteration.')
     parser.add_argument('-I', '--interval', type=int, default=3, help='Initializes a point in the coverage distribution every interval number of windows.')
     parser.add_argument('-C', '--coverage', type=float, default=0.1, help='Average sequencing coverage across the genome.')
-    parser.add_argument('-R', '--read-length', type=int, default=35, help='Paired-end short read length.')
+    parser.add_argument('-R', '--read-length', type=int, default=100, help='Paired-end short read length.')
     parser.add_argument('-P', '--processors', type=int, default=1, help='Number of processes to use for generating reads in parallel.')
 
     parser.add_argument('-d', '--summary', action='store_true', help='Summarize simulation statistics.')
@@ -62,6 +64,7 @@ def parse_args():
 
     return handle_args(arguments)
 
+#@profile
 def main(args):
     # Initialize output directory
     print('Output directory', os.path.abspath(args['out_path']))
@@ -95,6 +98,7 @@ def main(args):
         sim_dir_path, filename = os.path.split(file_path)
         chrom_lens, arm_ratios = hg38_chrom_lengths_from_cytoband(os.path.join(sim_dir_path, 'resources/cytoBand.txt'), include_allosomes=False, include_arms=True)
     
+    # Sequence mode
     if args['mode'] == 1:
         ref, ref_chrom_lens = read_fasta(args['reference'])
         ref_chrom_lens.pop('chrX', None)
@@ -110,7 +114,7 @@ def main(args):
         evolve_tree(tree.root, args, chrom_names, num_regions)
 
         print('Generating reads')
-        gen_reads(ref, num_regions, chrom_names, tree, args['lorenz_x'], args['lorenz_y'], args['min_cn_length'], args['interval'], args['window_size'], args['coverage'], args['read_length'], args['out_path'], args['processors'])
+        gen_reads(ref, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['min_cn_length'], args['interval'], args['window_size'], args['coverage'], args['read_length'], args['out_path'], args['processors'])
 
     # CNP mode
     if args['mode'] == 0:

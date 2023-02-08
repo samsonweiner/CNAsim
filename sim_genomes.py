@@ -4,9 +4,7 @@ from collections import Counter
 import os
 import pickle
 
-from reads import gen_reads_cell
 from utilities import hg38_chrom_lengths_from_cytoband, get_size
-from sequence import build_cell_ref
 
 # Categories --> 0: focal, 1: whole-chromosomal, 2: chromosome-arm
 class CNV():

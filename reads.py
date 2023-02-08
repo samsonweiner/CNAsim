@@ -2,6 +2,7 @@ import os
 import subprocess
 import itertools
 import multiprocessing
+from pyfaidx import Fasta
 
 import numpy as np
 from scipy.stats import beta
@@ -97,55 +98,68 @@ def gen_coverage(num_windows, interval, Aa, Bb):
         new_points += [(round(i[0]), i[1]) for i in coords[1:]]
     
     new_points.sort(key=lambda x: x[0])
-    new_points = [max(min(i[1], 1), 0) for i in new_points]
+    # Multiply by 2 so that values are in range 0-2. Value of 1 indicates mean coverage.
+    new_points = [2*max(min(i[1], 1), 0) for i in new_points]
     return new_points
 
 # Draw readcounts for each bin
 def draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_len):
     avg_read = (coverage*window_size) / (2*read_len)
     cov_scales = gen_coverage(num_windows, interval, Aa, Bb)
-    exp_counts = [2*avg_read*x for x in cov_scales]
-    readcounts = [np.random.poisson(x) for x in exp_counts]
+    #exp_counts = [avg_read*x for x in cov_scales]
+    #readcounts = [np.random.poisson(x) for x in exp_counts]
+    readcounts = [avg_read*x for x in cov_scales]
     return readcounts
 
 
 # Generate reads across the genome for a given cell
-def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, read_len, out_path):
+def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, out_path):
     print('Generating reads for:', cell.name)
     prefix = os.path.join(out_path, cell.name)
     for allele in [0, 1]:
         cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', ref, chrom_names, num_regions, min_cn_len, allele, prefix)
-        init = False
-        for chrom in chrom_names:
-            num_windows = round(chrom_lens[chrom] / window_size)
-            readcounts = draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_len)
-            for w in range(num_windows):
-                start = w * window_size + 1
-                if w == num_windows - 1:
-                    end = chrom_lens[chrom]
-                else:
-                    end = (w+1) * window_size
-                
-                region_fa_path = cell_ref[:-3] + '_region' + str(start) + '.fa'
-                with open(region_fa_path, 'w+') as f:
-                    call = subprocess.run(['samtools', 'faidx', cell_ref, chrom + ':' + str(start) + '-' + str(end)], stdout=f)
+        if uniform_coverage:
+            proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-C', str(coverage), '-1', str(read_len), '-2', str(read_len), cell_ref, cell_ref[:-3]], capture_output=True, text=True)
+        else:
+            init = False
+            for chrom in chrom_names:
+                num_windows = round(chrom_lens[chrom] / window_size)
+                readcounts = draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_len)
+                for w in range(num_windows):
+                    start = w * window_size + 1
+                    if w == num_windows - 1:
+                        end = chrom_lens[chrom]
+                    else:
+                        end = (w+1) * window_size
+                    
+                    region_fa_path = cell_ref[:-3] + '_region' + str(start) + '.fa'
+                    with open(region_fa_path, 'w+') as f:
+                        call = subprocess.run(['samtools', 'faidx', cell_ref, chrom + ':' + str(start) + '-' + str(end)], stdout=f)
+                    
+                    for record in Fasta(region_fa_path):
+                        total_N = record[:].seq.count('N')
+                    total_bp = end - start + 1
+                    N_ratio = total_N / total_bp
+                    readcount = round(readcounts[w] * (1-N_ratio))
 
-                proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(readcounts[w]), '-1', str(read_len), '-2', str(read_len), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
-                if not init:
-                    os.rename(region_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
-                    os.rename(region_fa_path[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
-                    init = True
-                else:
-                    with open(cell_ref[:-3] + '.read1.fastq.gz', 'a') as f1, open(cell_ref[:-3] + '.read2.fastq.gz', 'a') as f2:
-                        call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read1.fastq.gz'], stdout=f1)
-                        call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read2.fastq.gz'], stdout=f2)
-                    os.remove(region_fa_path[:-3] + '.bwa.read1.fastq.gz')
-                    os.remove(region_fa_path[:-3] + '.bwa.read2.fastq.gz')
-                os.remove(region_fa_path)
-                os.remove(region_fa_path[:-3] + '.mutations.txt')
-                os.remove(region_fa_path[:-3] + '.mutations.vcf')
-        os.remove(cell_ref)
-        os.remove(cell_ref + '.fai')
+                    if readcount > 0:
+                        proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
+                    
+                        if not init:
+                            os.rename(region_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
+                            os.rename(region_fa_path[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
+                            init = True
+                        else:
+                            with open(cell_ref[:-3] + '.read1.fastq.gz', 'a') as f1, open(cell_ref[:-3] + '.read2.fastq.gz', 'a') as f2:
+                                call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read1.fastq.gz'], stdout=f1)
+                                call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read2.fastq.gz'], stdout=f2)
+                            os.remove(region_fa_path[:-3] + '.bwa.read1.fastq.gz')
+                            os.remove(region_fa_path[:-3] + '.bwa.read2.fastq.gz')
+                        os.remove(region_fa_path[:-3] + '.mutations.txt')
+                        os.remove(region_fa_path[:-3] + '.mutations.vcf')
+                    os.remove(region_fa_path)
+            os.remove(cell_ref)
+            os.remove(cell_ref + '.fai')
     with open(prefix + '.read1.fastq.gz', 'w+') as f1, open(prefix + '.read2.fastq.gz', 'w+') as f2:
         call = subprocess.run(['cat', prefix + '_allele0.read1.fastq.gz', prefix + '_allele1.read1.fastq.gz'], stdout=f1)
         call = subprocess.run(['cat', prefix + '_allele0.read2.fastq.gz', prefix + '_allele1.read2.fastq.gz'], stdout=f2)
@@ -156,16 +170,16 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size,
     os.remove(prefix + '.pkl')
 
 # Generate reads for all cells
-def gen_reads(ref, num_regions, chrom_names, tree, x0, y0, min_cn_len, interval, window_size, coverage, read_len, out_path, num_processors):
+def gen_reads(ref, num_regions, chrom_names, tree, uniform_coverage, x0, y0, min_cn_len, interval, window_size, coverage, read_len, out_path, num_processors):
     global gen_reads_cell_helper
     # Helper function for parallel processing
     def gen_reads_cell_helper(cell):
-        gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, read_len, out_path)
+        gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, out_path)
 
     [Aa, Bb] = get_alpha_beta(x0, y0)
     if num_processors == 1:
         for cell in tree.iter_leaves():
-            gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, window_size, interval, Aa, Bb, coverage, read_len, out_path)
+            gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, out_path)
     else:
         pool = multiprocessing.Pool(processes=num_processors)
         for chunk in iter_by_chunk(tree.iter_leaves(), num_processors):
