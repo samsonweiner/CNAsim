@@ -10,7 +10,8 @@ from reads import *
 from noise import *
 from format_profiles import *
 from utilities import *
-from memory_profiler import profile
+#from memory_profiler import profile
+import cProfile, pstats
 
 def parse_args():
     #Arguments
@@ -152,5 +153,10 @@ def main(args):
         record_events(tree, os.path.join(args['out_path'], 'events.tsv'))
 
 if __name__ == '__main__':
+    profiler = cProfile.Profile()
+    profiler.enable()
     args = parse_args()
     main(args)
+    profiler.disable()
+    stats = pstats.Stats(profiler).sort_stats('cumtime')
+    stats.dump_stats(os.path.join(args['out_path'], 'stats.txt'))

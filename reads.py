@@ -3,6 +3,7 @@ import subprocess
 import itertools
 import multiprocessing
 from pyfaidx import Fasta
+from Bio import SeqIO
 
 import numpy as np
 from scipy.stats import beta
@@ -120,6 +121,10 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_cove
         cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', ref, chrom_names, num_regions, min_cn_len, allele, prefix)
         if uniform_coverage:
             proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-C', str(coverage), '-1', str(read_len), '-2', str(read_len), cell_ref, cell_ref[:-3]], capture_output=True, text=True)
+            os.rename(cell_ref[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
+            os.rename(cell_ref[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
+            os.remove(cell_ref[:-3] + '.mutations.txt')
+            os.remove(cell_ref[:-3] + '.mutations.vcf')
         else:
             init = False
             for chrom in chrom_names:
@@ -136,8 +141,8 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_cove
                     with open(region_fa_path, 'w+') as f:
                         call = subprocess.run(['samtools', 'faidx', cell_ref, chrom + ':' + str(start) + '-' + str(end)], stdout=f)
                     
-                    for record in Fasta(region_fa_path):
-                        total_N = record[:].seq.count('N')
+                    for record in SeqIO.parse(region_fa_path, 'fasta'):
+                        total_N = record.seq.count('N')
                     total_bp = end - start + 1
                     N_ratio = total_N / total_bp
                     readcount = round(readcounts[w] * (1-N_ratio))
@@ -158,8 +163,9 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_cove
                         os.remove(region_fa_path[:-3] + '.mutations.txt')
                         os.remove(region_fa_path[:-3] + '.mutations.vcf')
                     os.remove(region_fa_path)
-            os.remove(cell_ref)
-            os.remove(cell_ref + '.fai')
+                    #os.remove(region_fa_path + '.fai')
+        os.remove(cell_ref)
+        os.remove(cell_ref + '.fai')
     with open(prefix + '.read1.fastq.gz', 'w+') as f1, open(prefix + '.read2.fastq.gz', 'w+') as f2:
         call = subprocess.run(['cat', prefix + '_allele0.read1.fastq.gz', prefix + '_allele1.read1.fastq.gz'], stdout=f1)
         call = subprocess.run(['cat', prefix + '_allele0.read2.fastq.gz', prefix + '_allele1.read2.fastq.gz'], stdout=f2)
