@@ -265,18 +265,11 @@ def evolve_tree(node, args, chrom_names, num_regions, bins=None):
         mutate_genome(node, args, chrom_names)
 
     if node.is_leaf():
-        #print(node.name)
-        # CNP mode
-        if args['mode'] == 0 and bins != None:
-            format_profile(node, chrom_names, num_regions, bins)
-        # reads mode
-        elif args['mode'] == 1:
+        if args['mode'] == 1 or args['mode'] == 2:
             with open(os.path.join(args['out_path'], node.name + '.pkl'), 'wb') as f:
                 pickle.dump(node.genome, f)
-            #gen_reads_cell(node, ref, num_regions, chrom_names, args['min_cn_length'], args['window_size'], args['interval'], Aa, Bb, args['coverage'], args['read_length'], args['out_path'])
-        else:
-            print('No data mode selected?')
-            pass
+        if (args['mode'] == 0 or args['mode'] == 2) and bins != None:
+            format_profile(node, chrom_names, num_regions, bins)
 
     for child in node.children:
         evolve_tree(child, args, chrom_names, num_regions, bins=bins)

@@ -11,6 +11,9 @@ def read_fasta(input_fasta):
         chrom_lens[chrom] = len(ref[chrom])
     return ref, chrom_lens
 
+def make_alt_ref(ref):
+    pass
+
 def build_cell_ref(genome, ref, chrom_names, regions_per_chrom, min_cn_len, allele, prefix):
     if isinstance(genome, str):
         with open(genome, 'rb') as f:

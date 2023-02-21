@@ -6,7 +6,7 @@ from pyfaidx import Fasta
 from Bio import SeqIO
 
 import numpy as np
-from scipy.stats import beta
+from scipy.stats import beta, poisson
 from scipy.optimize import newton_krylov
 from scipy.optimize.nonlin import NoConvergence
 
@@ -109,7 +109,7 @@ def draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_l
     cov_scales = gen_coverage(num_windows, interval, Aa, Bb)
     #exp_counts = [avg_read*x for x in cov_scales]
     #readcounts = [np.random.poisson(x) for x in exp_counts]
-    readcounts = [avg_read*x for x in cov_scales]
+    readcounts = [poisson.rvs(avg_read*x) for x in cov_scales]
     return readcounts
 
 
@@ -120,7 +120,10 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_cove
     for allele in [0, 1]:
         cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', ref, chrom_names, num_regions, min_cn_len, allele, prefix)
         if uniform_coverage:
-            proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-C', str(coverage), '-1', str(read_len), '-2', str(read_len), cell_ref, cell_ref[:-3]], capture_output=True, text=True)
+            genome_len = sum([v for i,v in chrom_lens.items()])
+            exp_reads = (genome_len*coverage) / (2*read_len)
+            num_reads = poisson.rvs(exp_reads)
+            proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(num_reads), '-1', str(read_len), '-2', str(read_len), cell_ref, cell_ref[:-3]], capture_output=True, text=True)
             os.rename(cell_ref[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
             os.rename(cell_ref[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
             os.remove(cell_ref[:-3] + '.mutations.txt')

@@ -10,13 +10,11 @@ from reads import *
 from noise import *
 from format_profiles import *
 from utilities import *
-#from memory_profiler import profile
-import cProfile, pstats
 
 def parse_args():
     #Arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode', type=int, default=0, help='Main simulator mode for generating data. 0: CNP data, 1: read data')
+    parser.add_argument('-m', '--mode', type=int, required=True, help='Main simulator mode for generating data. 0: CNP data, 1: read data, 2: both')
     parser.add_argument('-o', '--out-path', type=str, default='/', help='Path to output directory.')
     parser.add_argument('-t', '--tree-type', type=int, default=0, help='0: ms, 1: random, 2: from file (use -T to specify file path).')
     parser.add_argument('-T', '--tree-path', type=str, default='', help='Path to input tree.')
@@ -65,7 +63,6 @@ def parse_args():
 
     return handle_args(arguments)
 
-#@profile
 def main(args):
     # Initialize output directory
     print('Output directory', os.path.abspath(args['out_path']))
@@ -89,8 +86,8 @@ def main(args):
 
     record_cell_types(tree, os.path.join(args['out_path'], 'cell_types.tsv'))
 
-    if args['placement_type'] == 1:
-        scale_edge_lengths(tree, args['placement_param'])
+    #if args['placement_type'] == 1:
+    #    scale_edge_lengths(tree, args['placement_param'])
 
     #Simulate evolution
     print('Generating genomes, events, and profiles...')
@@ -98,7 +95,12 @@ def main(args):
         file_path = os.path.realpath(__file__)
         sim_dir_path, filename = os.path.split(file_path)
         chrom_lens, arm_ratios = hg38_chrom_lengths_from_cytoband(os.path.join(sim_dir_path, 'resources/cytoBand.txt'), include_allosomes=False, include_arms=True)
+    else:
+        chrom_lens = {}
+        for i in range(1, args['num_chromosomes']+1):
+            chrom_lens['chr' + str(i)] = args['chrom_length']
     
+    '''
     # Sequence mode
     if args['mode'] == 1:
         ref, ref_chrom_lens = read_fasta(args['reference'])
@@ -142,6 +144,47 @@ def main(args):
             #save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
             add_noise_mixed(tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
         save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'profiles.tsv'))
+    '''
+
+    ##########################
+    if os.path.isfile(args['reference']):
+        ref, chrom_lens = read_fasta(args['reference'])
+        chrom_lens.pop('chrX', None)
+        chrom_lens.pop('chrY', None)
+        chrom_names = list(chrom_lens.keys())
+    else:
+        chrom_names = ['chr' + str(i+1) for i in range(args['num_chromosomes'])]
+
+    if args['use_hg38_static']:
+        normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, chrom_lens, arm_ratios)
+    else:
+        normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, chrom_lens, args['chrom_arm_ratio'])
+    tree.root.genome = normal_diploid_genome
+
+    if args['mode'] == 0 or args['mode'] == 2:
+        regions_per_bin = np.floor(args['bin_length']/args['min_cn_length'])
+        bins = {}
+        for chrom in chrom_names:
+            bins[chrom] = [k for k in range(num_regions[chrom]) if k % regions_per_bin == 0]
+            if (num_regions[chrom] - 1) - bins[chrom][-1] < regions_per_bin/2:
+                bins[chrom][-1] = num_regions[chrom]
+            else:
+                bins[chrom].append(num_regions[chrom])
+    else:
+        bins = None
+
+    evolve_tree(tree.root, args, chrom_names, num_regions, bins=bins)
+
+    if args['mode'] == 0 or args['mode'] == 2:
+        print('Formating and saving profiles')
+        if args['error_rate_1'] != 0 or args['error_rate_2'] != 0:
+            #save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
+            add_noise_mixed(tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
+        save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'profiles.tsv'))
+    
+    if args['mode'] == 1 or args['mode'] == 2:
+        gen_reads(ref, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['min_cn_length'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['out_path'], args['processors'])
+    ###########################
 
     #Log summary stats and execution time
     total_time = round(time.time() - start)
@@ -149,14 +192,14 @@ def main(args):
     log.close()
     #if args['summary']:
         #summary(tree, os.path.join(args['out_path'], 'summary.txt'), args['num_chroms'], args['WGD'], args['min_cn_length'])
-    if args['mode'] == 0 or args['mode'] == 1:
-        record_events(tree, os.path.join(args['out_path'], 'events.tsv'))
+    #if args['mode'] == 0 or args['mode'] == 1:
+    record_events(tree, os.path.join(args['out_path'], 'events.tsv'))
 
 if __name__ == '__main__':
-    profiler = cProfile.Profile()
-    profiler.enable()
+    #profiler = cProfile.Profile()
+    #profiler.enable()
     args = parse_args()
     main(args)
-    profiler.disable()
-    stats = pstats.Stats(profiler).sort_stats('cumtime')
-    stats.dump_stats(os.path.join(args['out_path'], 'stats.txt'))
+    #profiler.disable()
+    #stats = pstats.Stats(profiler).sort_stats('cumtime')
+    #stats.dump_stats(os.path.join(args['out_path'], 'stats.txt'))
