@@ -1,30 +1,25 @@
 import os
 import sys
 
-class CustomError(Exception):
-    pass
+class InputError(Exception):
+    def __init__(self, text):
+        self.message = "Cannot access input '" + str(text) + "'"
+        super().__init__(self.message)
 
-#Ensure inputs are sound
-'''
-def check_input(inputs):
-    if out_path[-1] != '/':
-        out_path += '/'
-    if not os.path.isdir(out_path):
-        call = subprocess.call(['mkdir', out_path])
+class ChromNameError(Exception):
+    def __init__(self):
+        self.message = "Chromosome names in reference do not match the provided hg38 names. Do not toggle --use-hg38-static parameter with this reference."
+        super().__init__(self.message)
 
-    try:
-        if tree_type not in [0, 1, 2]:
-            raise CustomError
-    except CustomError:
-        print('Input Error: For tree method choose 0, 1, or 2')
+class ChromNumError(Exception):
+    def __init__(self):
+        self.message = "Cannot have more than 22 chroms with the --use-hg38-static parameter toggled."
+        super().__init__(self.message)
 
-    if tree_type == 2:
-        try:
-            if not os.path.exists(tree_path):
-                raise CustomError
-        except CustomError:
-            print('Input Error: Tree file not found.')
-'''
+class ModeError(Exception):
+    def __init__(self):
+        self.message = "The simulator mode needs to be specified correctly. Select 0 for CNP, 1 for seq, or 2 for both."
+        super().__init__(self.message)
 
 def convert(val):
     if val == 'True':
@@ -41,8 +36,10 @@ def convert(val):
 
 def handle_args(arguments):
     if arguments.param_file:
+        file_path = os.path.realpath(__file__)
+        sim_dir_path, filename = os.path.split(file_path)
         args = {}
-        f = open(arguments.param_file)
+        f = open(os.path.join(sim_dir_path, 'parameters'))
         lines = f.readlines()
         f.close()
 
@@ -85,102 +82,56 @@ def hg38_chrom_lengths_from_cytoband(file_path, include_allosomes=False, include
 
 # Summary sim stats 
 def summary(tree, out_path, num_chroms, WGD, min_cn_length):
+    pass
+
+def record_cell_types(tree, out_path, super_clone_rate, clone_founders=[]):
     f = open(out_path, 'w+')
-    f.write('Summary\n-----------\n')
-    f.write('WGD present: ' + str(WGD) + '\n')
-
-    mutations = tree.get_mutations()
-
-    whole_event_stats = {}
-    CNV_count, CNV_lens, CNV_gains, CNV_copy = 0, 0, 0, 0
-    for mut in mutations:
-        if mut.category == 0:
-            CNV_count += 1
-            CNV_lens += mut.length
-            CNV_gains += mut.event
-            if mut.event == 1:
-                CNV_copy += mut.copies
-        elif mut.category == 1:
-            if mut.cell not in whole_event_stats:
-                whole_event_stats[mut.cell] = {}
-            if mut.chrom not in whole_event_stats[mut.cell]:
-                whole_event_stats[mut.cell][mut.chrom] = {}
-            if mut.event == 0:
-                whole_event_stats[mut.cell][mut.chrom][mut.allele] = [str(mut.cell), 'deletion', 'None']
-            else:
-                whole_event_stats[mut.cell][mut.chrom][mut.allele] = [str(mut.cell), 'gain', str(mut.copies)]
-
-    f.write('\nWhole chromosomal events\n')
-    for cell in whole_event_stats:
-        for chrom in whole_event_stats[cell]:
-            if 0 in whole_event_stats[cell][chrom]:
-                f.write('Chrom' + str(chrom+1) + '-p: '+ '/'.join(whole_event_stats[cell][chrom][0]) + ' --- cell/event/copies' + '\n')
-            if 1 in whole_event_stats[cell][chrom]:
-                f.write('Chrom' + str(chrom+1) + '-m: '+ '/'.join(whole_event_stats[cell][chrom][1]) + ' --- cell/event/copies' + '\n')
-    f.write('\nFocal events\n')
-    if CNV_count != 0:
-        f.write('Number of events: ' + str(CNV_count) + '\n')
-        f.write('Average length: ' + str(round(CNV_lens / CNV_count, 3)) + ' * ' + str(min_cn_length) + '\n')
-        f.write('Percent gain events: ' + str(round(CNV_gains / CNV_count, 3)) + '\n')
-    if CNV_gains != 0:
-        f.write('Average number of copies gained: ' + str(round(CNV_copy / CNV_gains, 3)) + '\n')
-    
-    '''
-    tallies = {}
-    for cell in tree.iter_leaves():
-        total_unchanged, total_changed, num_changes, num_segments = 0, 0, 0, 0
-        for chrom in range(num_chroms):
-            for allele in [0, 1]:
-                num_segments += len(cell.alterations[chrom][allele])
-                for segment in cell.alterations[chrom][allele]:
-                    if segment == 0:
-                        total_unchanged += 1
-                    if segment > 0:
-                        total_changed += 1
-                        num_changes += segment
-        tallies[cell.name] = [total_unchanged / num_segments, total_changed / num_segments, num_changes / total_changed]
-
-    global_averages = [0, 0, 0]
-    for cell, stats in tallies.items():
-        global_averages[0] += stats[0] 
-        global_averages[1] += stats[1]
-        global_averages[2] += stats[2]
-    global_averages = [str(round(i / len(tallies), 3)) for i in global_averages]
-    
-    f.write('\nAlteration stats -- cell/fraction unchanged/fraction changed/average times changed\n')
-    f.write('Average: ' + '/'.join(global_averages) + '\n')
-    '''
-
-    '''
-    f.write('\nLost Chromosomes -- chrom/number of descendant leaves\n')
-    found = {}
-    for cell in tree.iter_descendants():
-        for chrom in range(num_chroms):
-            for allele in [0, 1]:
-                if len(cell.genome[chrom][allele]) == 0:
-                    k = str(chrom) + '_' + str(allele)
-                    if k in found:
-                        if not cell.name in found[k]:
-                            f.write('Chrom' + k + ': ' + str(len(cell.iter_leaves())))
-                            found[k] = [node.name for node in cell.iter_descendants()]
-                    else:
-                        f.write('Chrom' + k + ': ' + str(len(cell.iter_leaves())))
-                        found[k] = [node.name for node in cell.iter_descendants()]
-    '''
+    if super_clone_rate:
+        clone_founders.extend(tree.founder.children)
+    if len(clone_founders) > 0:
+        clone_founders.sort(key=lambda x: len(x), reverse=True)
+        cloneid = 0
+        membership = {}
+        for n in tree.iter_descendants():
+            membership[n] = n.cell_type
+        for clone in clone_founders:
+            cloneid += 1
+            for n in clone.iter_descendants():
+                if n == clone:
+                    membership[n] = 'clone' + str(cloneid) + '_founder'
+                else:
+                    membership[n] = 'clone' + str(cloneid)
+        for n in tree.iter_descendants():
+            f.write(n.name + '\t' + membership[n] + '\n')
+    else:
+        for n in tree.iter_descendants():
+            f.write(n.name + '\t' + n.cell_type + '\n')
     f.close()
+    return clone_founders
 
-def record_cell_types(tree, out_path):
+def record_clone_events(tree, out_path, super_clone_rate, clone_founders):
     f = open(out_path, 'w+')
-    for n in tree.iter_descendants():
-        f.write(n.name + '\t' + n.cell_type + '\n')
+    cloneids = {clone_founders[i]: 'clone' + str(i+1) for i in range(len(clone_founders))}
+    eventdict = {0: 'del', 1: 'dup'}
+    scaledict = {1: {None: 'whole'}, 2: {'p': 'p', 'q': 'q'}}
+    f.write('\t'.join(['cellname', 'cloneid', 'chrom', 'allele', 'scale', 'event']) + '\n')
+    for e in tree.founder.events:
+        if e.category != 0:
+            f.write('\t'.join([str(x) for x in ['founder', 'None', e.chrom, e.allele, scaledict[e.category][e.arm], eventdict[e.event]]]) + '\n')
+    for c in clone_founders:
+        for e in c.events:
+            if e.category != 0:
+                f.write('\t'.join([str(x) for x in [c.name, cloneids[c], e.chrom, e.allele, scaledict[e.category][e.arm], eventdict[e.event]]]) + '\n')
     f.close()
 
 def record_events(tree, out_path):
     f = open(out_path, 'w+')
-    f.write('\t'.join(['node', 'category', 'chrom', 'allele', 'homolog', 'arm', 'start', 'length', 'event', 'copies']) + '\n')
+    eventdict = {0: 'del', 1: 'gain'}
+    f.write('\t'.join(['cellname', 'chrom', 'allele', 'start', 'length', 'event', 'copies']) + '\n')
     for n in tree.iter_descendants():
         for e in n.events:
-            f.write('\t'.join([str(x) for x in [n.name, e.category, e.chrom, e.allele, e.homolog, e.arm, e.start, e.length, e.event, e.copies]]) + '\n')
+            if e.category == 0:
+                f.write('\t'.join([str(x) for x in [n.name, e.chrom, e.allele, e.start, e.length, eventdict[e.event], e.copies]]) + '\n')
     f.close()
 
 def get_size(obj, seen=None):

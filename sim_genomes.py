@@ -213,8 +213,10 @@ def mutate_genome(node, args, chrom_names):
         if args['chrom_level_event']:
             if node.cell_type == 'clone':
                 num_chrom_events = max(np.random.poisson(args['chrom_rate_clone']), 1) # we want to make sure theres atleast 1 event
+            elif node.cell_type == 'founder':
+                num_chrom_events = np.random.poisson(args['chrom_rate_founder']) # --> Changing implementation where this is a param specific to founder edges
             else:
-                num_chrom_events = np.random.poisson(args['chrom_rate_root']) # --> Changing implementation where this is a param specific to founder edges
+                num_chrom_events = np.random.poisson(args['chrom_rate_super_clone'])
             for i in range(num_chrom_events):
                 chrom_alt_type = np.random.binomial(1, args['chrom_arm_rate'])
                 if chrom_alt_type == 1: #arm-level event

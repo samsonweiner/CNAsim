@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.stats
 import subprocess
 import os
 from collections import deque, Counter
@@ -343,25 +344,25 @@ def set_root_branchlen(tree, scale):
     tree.root.set_len(tot*scale)
 
 def scale_edge_lengths(tree, place_param):
-    leaf_edge_lens = [leaf.length for leaf in tree.iter_leaves()]
+    leaf_edge_lens = [leaf.length for leaf in tree.founder.iter_leaves()]
     avg_leaf_len = sum(leaf_edge_lens) / len(leaf_edge_lens)
     scalar = place_param / avg_leaf_len
 
-    for node in tree.iter_descendants():
-        if node.is_root():
+    for node in tree.founder.iter_descendants():
+        if node == tree.founder:
             node.length = place_param
         else:
             node.length = node.length * scalar
 
 # Calls the ms binary from the given path.
-def call_ms(ms_path, num_cells, out_path, growth_rate):
+def call_ms(num_cells, out_path, growth_rate):
     seed_vals = np.random.randint(1, 100000, 3)
     temp_path = os.path.join(out_path, 'temp_log')
     f = open(temp_path, 'w+')
     if growth_rate == 0:
-        call = subprocess.call([ms_path, str(num_cells), '1', '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
+        call = subprocess.call(['ms', str(num_cells), '1', '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
     else:
-        call = subprocess.call([ms_path, str(num_cells), '1', '-G', str(growth_rate), '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
+        call = subprocess.call(['ms', str(num_cells), '1', '-G', str(growth_rate), '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
     f.close()
     with open(temp_path) as f:
         line = f.readline()
@@ -375,13 +376,13 @@ def call_ms(ms_path, num_cells, out_path, growth_rate):
     #f.close()
     return tree_str
 
-def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_events, out_path, ms_path, growth_rate, tree_path):
+def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_events, out_path, growth_rate, tree_path):
     num_normal = round(num_cells * normal_frac)
     num_pseudonormal = round(num_cells * pseudonormal_frac)
     num_aneuploid = num_cells - num_normal - num_pseudonormal
 
     if tree_type == 0:
-        tree_str = call_ms(ms_path, num_aneuploid, out_path, growth_rate)
+        tree_str = call_ms(num_aneuploid, out_path, growth_rate)
         tree = Tree(newick=tree_str)
     elif tree_type == 1:
         tree = gen_random_topology(num_aneuploid)
@@ -446,24 +447,30 @@ def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_e
 
     return tree
 
-def select_clones(tree, num_clones):
-    #ancestral_aneuploids = {}
-    ancestral_aneuploids = []
+def select_clones(tree, num_clones, criteria, mu, sig):
+    ancestral_aneuploids = {}
     for node in tree.founder.iter_descendants():
-        if not node == tree.founder and not node.is_leaf() and not node.parent == tree.founder:
-            #ancestral_aneuploids[node] = node.length
-            ancestral_aneuploids.append(node)
+        if not node == tree.founder and not node.is_leaf():
+            ancestral_aneuploids[node] = len(node)
 
-    #(nodes, sizes) = zip(*ancestral_aneuploids.items())
-    #nodes, sizes = list(nodes), list(sizes)
-    #scaled_sizes = [x/sum(sizes) for x in sizes]
+    nodes, sizes = zip(*ancestral_aneuploids.items())
+
+    if criteria == 0:
+        if not mu:
+            sizes = [s/sum(sizes) for s in sizes]
+        else:
+            if not sig:
+                sig = mu*0.25
+            x = scipy.stats.norm(mu, sig)
+            sizes = [x.pdf(s) for s in sizes]
+            sizes = [s/sum(sizes) for s in sizes]
+    elif criteria == 1:
+        sizes = [x.length for x in nodes]
+        sizes = [x/sum(sizes) for x in sizes]
     
-    #clone_founders = np.random.choice(nodes, num_clones, p=scaled_sizes)
-
-    ancestral_aneuploids.sort(key = lambda x: x.length, reverse=True)
-    clone_founders = ancestral_aneuploids[:num_clones]
+    clone_founders = np.random.choice(nodes, num_clones, p=sizes)
 
     for clone in clone_founders:
         clone.cell_type = 'clone'
 
-    #return clone_founders
+    return list(clone_founders)
