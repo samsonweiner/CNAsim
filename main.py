@@ -29,17 +29,18 @@ def parse_args():
     parser.add_argument('-c3', '--clone-sd', type=float, default=None, help='SD in the number of leaves in a subclone. Must select 0 for clone-criteria.')
     parser.add_argument('-p1', '--placement-type', type=int, default=0, help='Number of CNAs per edge. 0: draw from a Poisson with fixed mean, 1: draw from a Poisson with mean prop to edge length, 2: fixed per edge')
     parser.add_argument('-p2', '--placement-param', type=float, default=2, help='Parameter for placement choice.')
-    parser.add_argument('-k', '--min-cn-length', type=int, default=1000, help='Minimum copy number event length in bp.')
+    parser.add_argument('-k', '--region-length', type=int, default=1000, help='Region length in bp. Essentially controls the resolution of the simulated genome.')
     parser.add_argument('-l', '--cn-length-mean', type=int, default=5000000, help='Mean copy number event length in bp.')
+    parser.add_argument('-l2', '--min-cn-length', type=int, default=1000, help='Minimum copy number event length in bp. Should be at minimum the region length and less than the mean.')
     parser.add_argument('-a', '--cn-copy-param', type=float, default=0.5, help='Parameter in the geometric to select number of copies.')
     parser.add_argument('-s', '--cn-event-rate', type=float, default=0.5, help='Probability an event is an amplification. Deletion rate is 1 - amp rate.')
     parser.add_argument('-j', '--founder-event-mult', type=int, default=10, help='Multiplier for the number of events along edge into founder cell.')
     parser.add_argument('-w', '--WGD', action='store_true', help='Include WGD.')
     parser.add_argument('-v', '--chrom-level-event', action='store_true', help='Include chromosomal alterations.')
     parser.add_argument('-q', '--chrom-arm-rate', type=float, default=0.75, help='Probability that a chromosomal event is a chromosome-arm event.')
-    parser.add_argument('-i1', '--chrom-rate-founder', type=int, default=2, help='Parameter in poisson for number of chromosome-level events along the edge into the founder cell.')
-    parser.add_argument('-i2', '--chrom-rate-super-clone', type=int, default=1, help='Parameter in poisson for number of chromosome-level events along the edges out of the founder cell.')
-    parser.add_argument('-i3', '--chrom-rate-clone', type=int, default=1, help='Parameter in poisson for number of chrom-level events for clonal nodes.')
+    parser.add_argument('-i1', '--chrom-rate-founder', type=float, default=2, help='Parameter in poisson for number of chromosome-level events along the edge into the founder cell.')
+    parser.add_argument('-i2', '--chrom-rate-super-clone', type=float, default=1, help='Parameter in poisson for number of chromosome-level events along the edges out of the founder cell.')
+    parser.add_argument('-i3', '--chrom-rate-clone', type=float, default=1, help='Parameter in poisson for number of chrom-level events for clonal nodes.')
     parser.add_argument('-u', '--chrom-event-type', type=float, default=0.5, help='Probability that a chromosomal event is a duplication.')
     parser.add_argument('-N', '--num-chromosomes', type=int, default=22, help='Number of chromosomes.')
     parser.add_argument('-L', '--chrom-length', type=int, default=100000000, help='Length of chromosomes in bp if not using hg38 static.')
@@ -92,7 +93,7 @@ def main(args):
     tree.save(os.path.join(args['out_path'], 'tree.nwk'), format=3)
 
     if not args['disable_info']:
-        clone_founders = record_cell_types(tree, os.path.join(args['out_path'], 'cell_types.tsv'), args['chrom_rate_super_clone'], clone_founders=clone_founders)
+        clone_founders = record_cell_types(tree, os.path.join(args['out_path'], 'cell_types.tsv'), args['chrom_level_event'], args['chrom_rate_super_clone'], clone_founders=clone_founders)
 
     if args['placement_type'] == 1:
         scale_edge_lengths(tree, args['placement_param'])
@@ -126,12 +127,12 @@ def main(args):
     else:
         arm_ratios = args['chrom_arm_ratio']
     
-    normal_diploid_genome, num_regions = init_diploid_genome(args['min_cn_length'], chrom_names, chrom_lens, arm_ratios)
+    normal_diploid_genome, num_regions = init_diploid_genome(args['region_length'], chrom_names, chrom_lens, arm_ratios)
     tree.root.genome = normal_diploid_genome
 
     print('Generating genomes, events, and profiles...')
     if args['mode'] == 0 or args['mode'] == 2:
-        regions_per_bin = np.floor(args['bin_length']/args['min_cn_length'])
+        regions_per_bin = np.floor(args['bin_length']/args['region_length'])
         bins = {}
         for chrom in chrom_names:
             bins[chrom] = [k for k in range(num_regions[chrom]) if k % regions_per_bin == 0]
@@ -149,12 +150,12 @@ def main(args):
         print('Formating and saving profiles')
         if args['error_rate_1'] != 0 or args['error_rate_2'] != 0:
             if args['output_clean_CNP']:
-                save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
+                save_CN_profiles(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
             add_noise_mixed(tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
-        save_CN_profiles(tree, chrom_names, bins, args['min_cn_length'], os.path.join(args['out_path'], 'profiles.tsv'))
+        save_CN_profiles(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'profiles.tsv'))
     
     if args['mode'] == 1 or args['mode'] == 2:
-        gen_reads(ref, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['min_cn_length'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['out_path'], args['processors'])
+        gen_reads(ref, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['region_length'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['out_path'], args['processors'])
 
     #Logging information
     if not args['disable_info']:

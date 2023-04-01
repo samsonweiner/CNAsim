@@ -27,7 +27,7 @@ def get_chrom_proportions(sequence):
     return combined_chrom_proportions
 
 # Creates initial genome from either from reference file, hg38 lengths, or with fixed chrom lengths and arm ratios
-def init_diploid_genome(min_cn_len, chrom_names, chrom_lens, arm_ratios):
+def init_diploid_genome(region_length, chrom_names, chrom_lens, arm_ratios):
     genome, regions = {}, {}
     static1, static2 = isinstance(chrom_lens, dict), isinstance(arm_ratios, dict)
     for chrom in chrom_names:
@@ -40,7 +40,7 @@ def init_diploid_genome(min_cn_len, chrom_names, chrom_lens, arm_ratios):
         else:
             arm_ratio = arm_ratios
 
-        num_regions = round(chrom_len / min_cn_len)
+        num_regions = round(chrom_len / region_length)
         cent_idx = round(num_regions*arm_ratio)
         hap_profile = [i for i in range(num_regions)]
         hap_profile.insert(cent_idx, 'X')
@@ -143,7 +143,7 @@ def gen_chrom_arm_event(cell, chrom_names, chrom_event_type):
     
     cell.events.append(CNV(cell=cell, category=2, chrom=chrom, allele=allele, homolog=homolog, arm=arm, event=event_type))
 
-def gen_focal_event(cell, chrom_names, length_mean, event_rate, copy_param):
+def gen_focal_event(cell, chrom_names, length_mean, min_length, event_rate, copy_param):
     #Determine chrom and allele of event from those that haven't been lost.
     #CN_allele = np.random.binomial(1, 0.5)
     #chrom_lens = [len(cell.genome[chrom][CN_allele]) for chrom in chrom_names]
@@ -164,7 +164,7 @@ def gen_focal_event(cell, chrom_names, length_mean, event_rate, copy_param):
 
     #Determine properties of event
     num_regions = len(cell.genome[CN_chrom][CN_allele][CN_homolog])
-    CN_size = max(min(round(np.random.exponential(length_mean)), num_regions), 1)
+    CN_size = max(min(round(np.random.exponential(length_mean)), num_regions), min_length)
     CN_type = np.random.binomial(1, event_rate)
     CN_copies = np.random.geometric(copy_param)
 
@@ -239,7 +239,7 @@ def mutate_genome(node, args, chrom_names):
     #if node.is_root():
         #num_events = int(num_events * args['root_event_mult'])
     for i in range(num_events):
-        gen_focal_event(node, chrom_names, args['cn_length_mean']/args['min_cn_length'], args['cn_event_rate'], args['cn_copy_param'])
+        gen_focal_event(node, chrom_names, args['cn_length_mean']/args['region_length'], max(round(args['min_cn_length']/args['region_length']), 1), args['cn_event_rate'], args['cn_copy_param'])
 
 def format_profile(node, chrom_names, num_regions, bins):
     # Collapsing genome in the form of a counter

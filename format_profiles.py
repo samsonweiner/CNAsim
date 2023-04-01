@@ -17,14 +17,14 @@ def collapse_genomes(genomes, normal_diploid_genome, num_chroms):
                     genome[chrom][allele][i] = 0
     return genomes
                 
-def format_CN_profiles(tree, normal_diploid_genome, num_chroms, min_cn_len, bin_len):
+def format_CN_profiles(tree, normal_diploid_genome, num_chroms, region_length, bin_len):
     # Consolidate leaf genomes
     genomes = get_genomes(tree)
     genome_counters = collapse_genomes(genomes, normal_diploid_genome, num_chroms)
 
     # Assign regions to bins
     bins, bin_coords = {}, {}
-    regions_per_bin = floor(bin_len / min_cn_len)
+    regions_per_bin = floor(bin_len / region_length)
     for chrom in range(num_chroms):
         bins[chrom], bin_coords[chrom] = {}, {}
         bin_count = 0
@@ -33,12 +33,12 @@ def format_CN_profiles(tree, normal_diploid_genome, num_chroms, min_cn_len, bin_
                 bins[chrom][bin_count] = [i]
             else:
                 if i % regions_per_bin == 0:
-                    bin_coords[chrom][bin_count] = [bins[chrom][bin_count][0]*min_cn_len, (bins[chrom][bin_count][-1]+1)*min_cn_len]
+                    bin_coords[chrom][bin_count] = [bins[chrom][bin_count][0]*region_length, (bins[chrom][bin_count][-1]+1)*region_length]
                     bin_count += 1
                     bins[chrom][bin_count] = [i]
                 else:
                     bins[chrom][bin_count].append(i)
-        bin_coords[chrom][bin_count] = [bins[chrom][bin_count][0]*min_cn_len, (bins[chrom][bin_count][-1]+1)*min_cn_len]
+        bin_coords[chrom][bin_count] = [bins[chrom][bin_count][0]*region_length, (bins[chrom][bin_count][-1]+1)*region_length]
 
     # Find the average number of copies over the regions in each bin
     CN_profiles = {}
@@ -55,7 +55,7 @@ def format_CN_profiles(tree, normal_diploid_genome, num_chroms, min_cn_len, bin_
     
     return CN_profiles, bin_coords
 
-def save_CN_profiles(tree, chrom_names, bins, min_cn_length, filepath):
+def save_CN_profiles(tree, chrom_names, bins, region_length, filepath):
     f = open(filepath, 'w+')
     headers = ['CELL', 'chrom', 'start', 'end', 'CN states']
     f.write('\t'.join(headers) + '\n')
@@ -66,7 +66,7 @@ def save_CN_profiles(tree, chrom_names, bins, min_cn_length, filepath):
     for chrom in chrom_names:
         num_bins = len(bins[chrom]) - 1
         for i in range(num_bins):
-            bin_start, bin_end = str(bins[chrom][i]*min_cn_length), str(bins[chrom][i+1]*min_cn_length)
+            bin_start, bin_end = str(bins[chrom][i]*region_length), str(bins[chrom][i+1]*region_length)
             for leaf in leaves:
                 CN_state = str(leaf.profile[chrom][0][i]) + ',' + str(leaf.profile[chrom][1][i])
                 line = [leaf.name, chrom, bin_start, bin_end, CN_state]

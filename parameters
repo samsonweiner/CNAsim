@@ -41,6 +41,7 @@
 [22] Number of chromosomes. (--num-chromosomes)
 [100000000] Length of chromosomes in bp if not using hg38 static. (chrom-length)
 [0.5] If not using hg38 static, ratio of length within the p-arm. (chrom-arm-ratio)
+[1000] Region length in bp. (region-length)
 [1000000] Resolution of copy number profiles in bp. (bin-length)
 [0] Error rate for the boundary model. (error-rate-1)
 [0] Error rate for the jitter model. (error-rate-2)

@@ -360,9 +360,9 @@ def call_ms(num_cells, out_path, growth_rate):
     temp_path = os.path.join(out_path, 'temp_log')
     f = open(temp_path, 'w+')
     if growth_rate == 0:
-        call = subprocess.call(['ms', str(num_cells), '1', '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
+        call = subprocess.call(['mspms', str(num_cells), '1', '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
     else:
-        call = subprocess.call(['ms', str(num_cells), '1', '-G', str(growth_rate), '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
+        call = subprocess.call(['mspms', str(num_cells), '1', '-G', str(growth_rate), '-T', '-seeds', str(seed_vals[0]), str(seed_vals[1]), str(seed_vals[2])], stdout=f)
     f.close()
     with open(temp_path) as f:
         line = f.readline()
@@ -460,7 +460,7 @@ def select_clones(tree, num_clones, criteria, mu, sig):
             sizes = [s/sum(sizes) for s in sizes]
         else:
             if not sig:
-                sig = mu*0.25
+                sig = mu*0.1
             x = scipy.stats.norm(mu, sig)
             sizes = [x.pdf(s) for s in sizes]
             sizes = [s/sum(sizes) for s in sizes]
@@ -468,7 +468,7 @@ def select_clones(tree, num_clones, criteria, mu, sig):
         sizes = [x.length for x in nodes]
         sizes = [x/sum(sizes) for x in sizes]
     
-    clone_founders = np.random.choice(nodes, num_clones, p=sizes)
+    clone_founders = np.random.choice(nodes, size=num_clones, p=sizes, replace=False)
 
     for clone in clone_founders:
         clone.cell_type = 'clone'

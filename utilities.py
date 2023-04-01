@@ -81,12 +81,15 @@ def hg38_chrom_lengths_from_cytoband(file_path, include_allosomes=False, include
         return chrom_lens
 
 # Summary sim stats 
-def summary(tree, out_path, num_chroms, WGD, min_cn_length):
+def summary(tree, out_path, num_chroms, WGD, region_length):
     pass
 
-def record_cell_types(tree, out_path, super_clone_rate, clone_founders=[]):
+def record_cell_types(tree, out_path, chrom_level_event, super_clone_rate, clone_founders=[]):
     f = open(out_path, 'w+')
-    if super_clone_rate:
+    if super_clone_rate and chrom_level_event:
+        #for c in tree.founder.children:
+        #    if c not in clone_founders:
+        #        clone_founders.append(c)
         clone_founders.extend(tree.founder.children)
     if len(clone_founders) > 0:
         clone_founders.sort(key=lambda x: len(x), reverse=True)
@@ -113,7 +116,7 @@ def record_clone_events(tree, out_path, super_clone_rate, clone_founders):
     f = open(out_path, 'w+')
     cloneids = {clone_founders[i]: 'clone' + str(i+1) for i in range(len(clone_founders))}
     eventdict = {0: 'del', 1: 'dup'}
-    scaledict = {1: {None: 'whole'}, 2: {'p': 'p', 'q': 'q'}}
+    scaledict = {1: {None: 'whole'}, 2: {'p': 'p', 'q': 'q', None: 'Other'}}
     f.write('\t'.join(['cellname', 'cloneid', 'chrom', 'allele', 'scale', 'event']) + '\n')
     for e in tree.founder.events:
         if e.category != 0:

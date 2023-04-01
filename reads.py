@@ -15,6 +15,9 @@ from sequence import *
 def iter_by_chunk(iterable, chunksize):
     return itertools.zip_longest(*[iter(iterable)] * chunksize)
 
+def init_pool_processes():
+    np.random.seed()
+
 # Estimating alpha/beta from point on lorenz curve
 def get_alpha_beta(x0, y0):
     def F(P):
@@ -114,16 +117,17 @@ def draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_l
 
 
 # Generate reads across the genome for a given cell
-def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, out_path):
+def gen_reads_cell(cell, ref, num_regions, chrom_names, region_length, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, out_path):
     print('Generating reads for:', cell.name)
     prefix = os.path.join(out_path, cell.name)
     for allele in [0, 1]:
-        cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', ref, chrom_names, num_regions, min_cn_len, allele, prefix)
+        cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', ref, chrom_names, num_regions, region_length, allele, prefix)
         if uniform_coverage:
             genome_len = sum([v for i,v in chrom_lens.items()])
             exp_reads = (genome_len*coverage) / (2*read_len)
             num_reads = poisson.rvs(exp_reads)
-            proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(num_reads), '-1', str(read_len), '-2', str(read_len), cell_ref, cell_ref[:-3]], capture_output=True, text=True)
+            seed = np.random.randint(1, 10000000)
+            proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(num_reads), '-1', str(read_len), '-2', str(read_len), cell_ref, cell_ref[:-3]], capture_output=True, text=True)
             os.rename(cell_ref[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
             os.rename(cell_ref[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
             os.remove(cell_ref[:-3] + '.mutations.txt')
@@ -151,7 +155,8 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_cove
                     readcount = round(readcounts[w] * (1-N_ratio))
 
                     if readcount > 0:
-                        proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
+                        seed = np.random.randint(1, 10000000)
+                        proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
                     
                         if not init:
                             os.rename(region_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
@@ -179,20 +184,22 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_cove
     os.remove(prefix + '.pkl')
 
 # Generate reads for all cells
-def gen_reads(ref, num_regions, chrom_names, tree, uniform_coverage, x0, y0, min_cn_len, interval, window_size, coverage, read_len, out_path, num_processors):
+def gen_reads(ref, num_regions, chrom_names, tree, uniform_coverage, x0, y0, region_length, interval, window_size, coverage, read_len, out_path, num_processors):
     global gen_reads_cell_helper
     # Helper function for parallel processing
     def gen_reads_cell_helper(cell):
-        gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, out_path)
+        gen_reads_cell(cell, ref, num_regions, chrom_names, region_length, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, out_path)
 
     [Aa, Bb] = get_alpha_beta(x0, y0)
     if num_processors == 1:
         for cell in tree.iter_leaves():
-            gen_reads_cell(cell, ref, num_regions, chrom_names, min_cn_len, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, out_path)
+            gen_reads_cell(cell, ref, num_regions, chrom_names, region_length, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, out_path)
     else:
-        pool = multiprocessing.Pool(processes=num_processors)
-        for chunk in iter_by_chunk(tree.iter_leaves(), num_processors):
-            cells = list(chunk)
-            while None in cells:
-                cells.remove(None)
-            pool.map(gen_reads_cell_helper, cells)
+        with multiprocessing.Pool(processes=num_processors, initializer=init_pool_processes) as pool:
+            pool.map(gen_reads_cell_helper, tree.iter_leaves())
+        #pool = multiprocessing.Pool(processes=num_processors)
+        #for chunk in iter_by_chunk(tree.iter_leaves(), num_processors):
+        #    cells = list(chunk)
+        #    while None in cells:
+        #        cells.remove(None)
+        #    pool.map(gen_reads_cell_helper, cells)
