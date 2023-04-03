@@ -1,6 +1,13 @@
 # CNAsim
 
-CNAsim is a tumor evolution simulator for generating single-cell data. CNAsim can be used to generate copy number profiles with noise patterns mimicing single-cell CNA detection algorithms, as well as synthetic sequencing reads.
+CNAsim is a software package for improved simulation of single-cell copy number alteration (CNA) data from tumors. CNAsim can be used to generate copy number profiles with noise patterns that mimic those of single-cell CNA detection algorithms, and to generate DNA-seq data for sampled cells. It offers significantly improved scalability, a high degree of customizability, and improved biological realism of simulated data. CNAsim can be cited as follows:
+
+
+CNAsim: Improved simulation of single-cell copy number profiles and DNA-seq data from tumors
+
+Samson Weiner and Mukul S. Bansal
+
+Under review
 
 <!--
 More information can be found in our paper, located here: [link to paper].
@@ -65,11 +72,11 @@ conda install numpy scipy msprime biopython pyfaidx
 
 ### External packages
 
-Additionally, CNAsim requires that the following binaries are installed and configured on the environment.
+Additionally, CNAsim requires that the following packages are installed and configured on the environment.
 * [samtools](http://www.htslib.org/download/) 
 * [dwgsim](https://github.com/nh13/DWGSIM)
 
-You may follow the installation guides with the links provided. After all three binaries are installed and compiled, you must add the directories containing each binary to your `$PATH` variable. For example,
+You may follow the installation guides with the links provided. Note that both packages can also be installed with conda. If the former option is used, the downloaded binaries must be compiled and the directories containing each binary must be added to your `$PATH` variable. For example,
 ```
 export PATH=/path/to/msdir:$PATH
 ```
@@ -151,7 +158,7 @@ python3 main.py -F
 
    `-l, --cn-length-mean` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The average length of a focal CNA in number of base pairs. Default: 5 Mbp
 
-   `-l2, --cn-length-mean` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Minimum copy number event length in bp. Should be at minimum the region length and no greater than the mean. Default: 1000 bp
+   `-l2, --min-cn-length` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Minimum copy number event length in bp. Should be at minimum the region length and no greater than the mean. Default: 1000 bp
 
    `-s, --cn-event-rate` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The probability that an event is an amplification. Default: 0.5
 
@@ -219,23 +226,23 @@ python main.py --help
 python main.py -m 0 -n 50 -N 1  
 ```
 
-## 2. Whole-genome copy number profiles of 100 tumor cells and 3 subclones with resolution and noise expected of Ginkgo/HMMcopy
+## 2. Whole-genome copy number profiles of 100 tumor cells and 3 subclones with resolution and noise as may result from using Ginkgo/HMMcopy
 
 ```
 python main.py -m 0 -n 100 -c 3 -v -U -B 500000 -E1 0.04 -E2 0.1
 ```
 
-## 3. Generating whole-genome sequencing reads of 100 tumor cells using MALBAC
+## 3. Generating whole-genome sequencing reads of 100 tumor cells assuming read depth nonuniformity of MALBAC
 
 ```
 python main.py -m 1 -n 100 -r hg38.fa -U -C 25 -X 0.5 -Y 0.27 
 ```
 
-## 4. Mimicing large-scale whole-genome 10x genomics breast cancer dataset with ultra-low coverage with synthetic reads and ground truth copy number profiles
+## 4. Mimicing large-scale whole-genome 10x genomics breast cancer dataset with ultra-low coverage with synthetic reads and ground truth copy number profiles leveraging 8 cores.
 
 ```
-python main.py -m 2 -n 10000 -n1 0.4 -n2 0.05 -c 7 -c2 100 -c3 50 -r path/to/hg38.fa -U -w -v -u 0.2 -C 0.03 -B 5000000
+python main.py -m 2 -n 10000 -n1 0.4 -n2 0.05 -c 7 -c2 100 -c3 50 -r path/to/hg38.fa -U -w -v -u 0.2 -C 0.02 -k 10000 -B 5000000 -P 8
 ```
-Note that running the above command as-is will take an extremely long time. When generating sequencing data for a large number of cells, it is *strongly* recommended to make use of parallelization.
+It should be noted that even with very low coverage, the above command will take a substantial amount of time (estimated at ~100 hours). When generating sequencing data for a large number of cells, it is *strongly* recommended to make use of parallelization.
 
 ## 

@@ -38,5 +38,5 @@ def build_cell_ref(genome, ref, chrom_names, regions_per_chrom, region_length, a
         f.write('\n')
     f.close()
     call = subprocess.run(['samtools', 'faidx', ref_name])
-    #ref, chrom_lens = read_fasta(ref_name)
+    #cur_ref = Fasta(ref_name)
     return ref_name, chrom_lens

@@ -125,13 +125,32 @@ def gen_reads_cell(cell, ref, num_regions, chrom_names, region_length, uniform_c
         if uniform_coverage:
             genome_len = sum([v for i,v in chrom_lens.items()])
             exp_reads = (genome_len*coverage) / (2*read_len)
-            num_reads = poisson.rvs(exp_reads)
-            seed = np.random.randint(1, 10000000)
-            proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(num_reads), '-1', str(read_len), '-2', str(read_len), cell_ref, cell_ref[:-3]], capture_output=True, text=True)
-            os.rename(cell_ref[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
-            os.rename(cell_ref[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
-            os.remove(cell_ref[:-3] + '.mutations.txt')
-            os.remove(cell_ref[:-3] + '.mutations.vcf')
+            init = False
+            for chrom in chrom_names:
+                chrom_fa_path = cell_ref[:-3] + '_' + chrom + '.fa'
+                with open(chrom_fa_path, 'w+') as f:
+                        prof = subprocess.run(['samtools', 'faidx', cell_ref, chrom], stdout=f)
+                read_prop = chrom_lens[chrom] / genome_len
+                readcount = poisson.rvs(exp_reads*read_prop)
+
+                if readcount > 0:
+                    seed = np.random.randint(1, 10000000)
+                    print(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), chrom_fa_path, chrom_fa_path[:-3]])
+                    proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), chrom_fa_path, chrom_fa_path[:-3]], capture_output=True, text=True)
+
+                    if not init:
+                        os.rename(chrom_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
+                        os.rename(chrom_fa_path[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
+                        init = True
+                    else:
+                        with open(cell_ref[:-3] + '.read1.fastq.gz', 'a') as f1, open(cell_ref[:-3] + '.read2.fastq.gz', 'a') as f2:
+                            call = subprocess.run(['cat', chrom_fa_path[:-3] + '.bwa.read1.fastq.gz'], stdout=f1)
+                            call = subprocess.run(['cat', chrom_fa_path[:-3] + '.bwa.read2.fastq.gz'], stdout=f2)
+                        os.remove(chrom_fa_path[:-3] + '.bwa.read1.fastq.gz')
+                        os.remove(chrom_fa_path[:-3] + '.bwa.read2.fastq.gz')
+                    os.remove(chrom_fa_path[:-3] + '.mutations.txt')
+                    os.remove(chrom_fa_path[:-3] + '.mutations.vcf')
+                os.remove(chrom_fa_path)
         else:
             init = False
             for chrom in chrom_names:
