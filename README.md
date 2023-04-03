@@ -4,9 +4,7 @@ CNAsim is a software package for improved simulation of single-cell copy number 
 
 
 CNAsim: Improved simulation of single-cell copy number profiles and DNA-seq data from tumors
-
 Samson Weiner and Mukul S. Bansal
-
 Under review
 
 <!--
