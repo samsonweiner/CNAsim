@@ -18,14 +18,13 @@
 import argparse
 import os
 import time
-import sys
 
 from tree import *
-from sim_genomes import *
-from sequence import *
-from reads import *
-from noise import *
-from format_profiles import *
+from sim_genomes import init_diploid_genome, evolve_tree
+from sequence import read_fasta
+from reads import gen_reads
+from noise import add_noise_mixed
+from format_profiles import save_CN_profiles
 from utilities import *
 
 
@@ -67,7 +66,9 @@ def parse_args():
     parser.add_argument('-E2', '--error-rate-2', type=float, default=0, help='Error rate for the jitter model.')
     parser.add_argument('-O', '--output-clean-CNP', action='store_true', help='Output the clean CNPs in addition to the noisy ones.')
     parser.add_argument('-U', '--use-hg38-static', action='store_true', help='Use hg38 chromosome information.')
-    parser.add_argument('-r', '--reference', type=str, default=None, help='Path to input reference genome in fasta format.')
+    #parser.add_argument('-A', '--include-autosomes', action='store_true', help='Include autosomes in genome. Must either use hg38 static with number of chromosomes > 22, or pass a reference genome with autosomes.')
+    parser.add_argument('-r1', '--reference', type=str, default=None, help='Path to input reference genome as the primary haplotype in fasta format. Will be duplicated as both haplotypes if an alternate is not provided.')
+    parser.add_argument('-r2', '--alt-reference', type=str, default=None, help='Path to an alternate reference genome to be used as a secondary haplotype, also in fasta format.')
     parser.add_argument('-M', '--use-uniform-coverage', action='store_true', help='Use uniform coverage across the genome.')
     parser.add_argument('-X', '--lorenz-x', type=float, default=0.5, help='x-coordinate of point on lorenz curve if using non-uniform coverage.')
     parser.add_argument('-Y', '--lorenz-y', type=float, default=0.4, help='y-coordinate of point on lorenz curve if using non-uniform coverage.')
@@ -86,19 +87,19 @@ def main(args):
     if args['mode'] not in [0, 1, 2]:
         raise ModeError
 
-    # Initialize output directory
+    ## Initialize output directory
     print('Output directory:', os.path.abspath(args['out_path']))
     if not os.path.isdir(args['out_path']):
         os.makedirs(args['out_path'])
 
-    #Log parameters
+    ## Log parameters
     if not args['disable_info']:
         start = time.time()
         log = open(os.path.join(args['out_path'], 'log.txt'), 'w+')
         for k,v in args.items():
             log.write(k + ': ' + str(v) + '\n')
 
-    #Create tree structure
+    ## Create tree structure
     print('Preparing ground truth tree...')
     founder_events = args['placement_param'] * args['founder_event_mult']
     tree = make_tumor_tree(args['tree_type'], args['num_cells'], args['normal_fraction'], args['pseudonormal_fraction'], founder_events, args['out_path'], args['growth_rate'], args['tree_path'])
@@ -115,30 +116,41 @@ def main(args):
     if args['placement_type'] == 1:
         scale_edge_lengths(tree, args['placement_param'])
 
+    ## Initialize genome
     print('Initializing reference genome...')
     if args['reference']:
         if not os.path.isfile(args['reference']):
             raise InputError(args['reference'])
+        ref1, chrom_lens = read_fasta(args['reference'])
+        chrom_lens.pop('chrX', None)
+        chrom_lens.pop('chrY', None)
+        chrom_names = list(chrom_lens.keys())
+        if args['alt_reference']:
+            if not os.path.isfile(args['alt_reference']):
+                raise InputError(args['alt_reference'])
+            ref2, alt_chrom_lens = read_fasta(args['alt_reference'])
+            alt_chrom_lens.pop('chrX', None)
+            alt_chrom_lens.pop('chrY', None)
+            if set(chrom_names) != set(alt_chrom_lens.keys()):
+                raise ChromNameError()
         else:
-            ref, chrom_lens = read_fasta(args['reference'])
-            chrom_names = list(chrom_lens.keys())
+            ref2 = ref1
     else:
         if args['mode'] == 1 or args['mode'] == 2:
             raise InputError(args['reference'])
-        else:
-            chrom_names = ['chr' + str(i+1) for i in range(args['num_chromosomes'])]
-            chrom_lens = dict(zip(chrom_names, [args['chrom_length'] for i in range(args['num_chromosomes'])]))
+        chrom_names = ['chr' + str(i+1) for i in range(args['num_chromosomes'])]
+        chrom_lens = dict(zip(chrom_names, [args['chrom_length'] for i in range(args['num_chromosomes'])]))
 
     if args['use_hg38_static']:
         file_path = os.path.realpath(__file__)
         sim_dir_path, filename = os.path.split(file_path)
         if not args['reference']:
-            chrom_lens, arm_ratios = hg38_chrom_lengths_from_cytoband(os.path.join(sim_dir_path, 'resources/cytoBand.txt'), include_allosomes=True, include_arms=True)
+            chrom_lens, arm_ratios = hg38_chrom_lengths_from_cytoband(os.path.join(sim_dir_path, 'resources/cytoBand.txt'), include_allosomes=False, include_arms=True)
             if args['num_chromosomes'] > 22:
                 raise ChromNumError()
         else:
-            temp, arm_ratios = hg38_chrom_lengths_from_cytoband(os.path.join(sim_dir_path, 'resources/cytoBand.txt'), include_allosomes=True, include_arms=True)
-            for chrom in chrom_lens.keys():
+            temp, arm_ratios = hg38_chrom_lengths_from_cytoband(os.path.join(sim_dir_path, 'resources/cytoBand.txt'), include_allosomes=False, include_arms=True)
+            for chrom in chrom_names:
                 if chrom not in arm_ratios:
                     raise ChromNameError()
     else:
@@ -147,6 +159,7 @@ def main(args):
     normal_diploid_genome, num_regions = init_diploid_genome(args['region_length'], chrom_names, chrom_lens, arm_ratios)
     tree.root.genome = normal_diploid_genome
 
+    ## Evolve genomes along tree
     print('Generating genomes, events, and profiles...')
     if args['mode'] == 0 or args['mode'] == 2:
         regions_per_bin = np.floor(args['bin_length']/args['region_length'])
@@ -162,6 +175,7 @@ def main(args):
 
     evolve_tree(tree.root, args, chrom_names, num_regions, bins=bins)
 
+    ## Generate data
     print('Generating single-cell data...')
     if args['mode'] == 0 or args['mode'] == 2:
         print('Formating and saving profiles')
@@ -172,9 +186,9 @@ def main(args):
         save_CN_profiles(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'profiles.tsv'))
     
     if args['mode'] == 1 or args['mode'] == 2:
-        gen_reads(ref, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['region_length'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['out_path'], args['processors'])
+        gen_reads(ref1, ref2, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['region_length'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['out_path'], args['processors'])
 
-    #Logging information
+    ## Logging information
     if not args['disable_info']:
         total_time = round(time.time() - start)
         log.write('\nTime: ' + str(total_time) + '\n')

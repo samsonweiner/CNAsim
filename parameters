@@ -7,7 +7,7 @@
 [False] Do not output simulation log, cell types, or ground truth events. (--disable-info)
 
 # Population
-[0] Cell tree generation type. 0: ms, 1: random, 2: from file (use -T to specify file path). (--tree-type)
+[0] Cell tree generation type. 0: ms, 1: random, 2: from file use *-T to specify file path*. (--tree-type)
 [None] Path to input tree if tree-type option 2. (--tree-path)
 [25] Number of observed cells in the tree (--num_cells).
 [15.1403] Exponential growth rate used in ms. (--growth-rate)
@@ -49,11 +49,12 @@
 [True] Use hg38 chromosome information. (use_hg38_lengths)
 
 # Sequencing reads
-[None] Path to input reference genome in fasta format. (--reference)
+[None] Path to input reference genome as the primary haplotype in fasta format. Will be duplicated as both haplotypes if an alternate is not provided. (--reference)
+[None] Path to an alternate reference genome to be used as a secondary haplotype, also in fasta format. (--alt-reference)
 [True] Use uniform sequencing coverage across the genome. (--use-uniform-coverage)
 [0.5] x-coordinate of point on lorenz curve (used for non-uniform coverage). (--lorenz-x)
 [0.4] y-coordinate of point on lorenz curve (used for non-uniform coverage). (--lorenz-y)
-[1000000] Number of base pairs to generate reads for in each iteration (used for non-uniform coverage). (--window-size)
+[1000000] Number of base pairs to generate reads for in each iteration *used for non-uniform coverage*. (--window-size)
 [5] Initializes a point in the coverage distribution every interval number of windows (used for non-uniform coverage). (--interval)
 [0.1] Average sequencing coverage across the genome. (--coverage)
 [150] Paired-end short read length. (--read-length)

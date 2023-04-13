@@ -8,17 +8,17 @@ class InputError(Exception):
 
 class ChromNameError(Exception):
     def __init__(self):
-        self.message = "Chromosome names in reference do not match the provided hg38 names. Do not toggle --use-hg38-static parameter with this reference."
+        self.message = "Chromosome names in reference do not match the alternate and/or precomputed hg38 names. Check chromosome names or consider disabling the --use-hg38-static parameter with this reference."
         super().__init__(self.message)
 
 class ChromNumError(Exception):
     def __init__(self):
-        self.message = "Cannot have more than 22 chroms with the --use-hg38-static parameter toggled."
+        self.message = "Cannot have more than 23 chroms with the --use-hg38-static parameter toggled."
         super().__init__(self.message)
 
 class ModeError(Exception):
     def __init__(self):
-        self.message = "The simulator mode needs to be specified correctly. Select 0 for CNP, 1 for seq, or 2 for both."
+        self.message = "The simulation mode needs to be specified correctly. Select 0 for CNP, 1 for seq, or 2 for both."
         super().__init__(self.message)
 
 def convert(val):

@@ -104,7 +104,9 @@ python3 main.py -F
 
    `-T, --tree-path` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Users may use a precomputed cell lineage tree by selecting option 2 as the tree type (see below). Specifies the path to the tree in newick format.
 
-   `-r, --reference` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The path to the input reference genome. Required if run in seq mode.
+   `-r1, --reference` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Path to input reference genome as the primary haplotype in fasta format. Will be duplicated as both haplotypes if an alternate is not provided. Required if run in seq mode.
+
+   `-r2, --alt-reference` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Path to an alternate reference genome to be used as a secondary haplotype, also in fasta format.
 
    `-P, --num-processors` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The number of processors to use for generating sequencing reads in parallel. Does not affect the generation of CNPs. Default: 1
 
