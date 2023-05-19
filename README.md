@@ -74,7 +74,11 @@ Additionally, CNAsim requires that the following packages are installed and conf
 * [samtools](http://www.htslib.org/download/) 
 * [dwgsim](https://github.com/nh13/DWGSIM)
 
-You may follow the installation guides with the links provided. Note that both packages can also be installed with conda. If the former option is used, the downloaded binaries must be compiled and the directories containing each binary must be added to your `$PATH` variable. For example,
+Both packages may be installed with `conda`.
+```
+conda install -c bioconda samtools dwgsim
+```
+You may follow the installation guides with the links provided. If this option is used, the downloaded binaries must be compiled and the directories containing each binary must be added to your `$PATH` variable. For example,
 ```
 export PATH=/path/to/msdir:$PATH
 ```
