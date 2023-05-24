@@ -33,9 +33,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument('-m', '--mode', type=int, default=None, help='Main simulator mode for generating data. 0: CNP data, 1: read data, 2: both')
     parser.add_argument('-o', '--out-path', type=str, default='CNAsim_output/', help='Path to output directory.')
-    parser.add_argument('-t', '--tree-type', type=int, default=0, help='0: ms, 1: random, 2: from file (use -T to specify file path).')
+    parser.add_argument('-t', '--tree-type', type=int, default=0, help='0: coalescence, 1: random, 2: from file (use -T to specify file path).')
     parser.add_argument('-T', '--tree-path', type=str, default=None, help='Path to input tree.')
-    parser.add_argument('-g', '--growth-rate', type=float, default=15.1403, help='Exponential growth rate for ms.')
+    parser.add_argument('-g', '--growth-rate', type=float, default=15.1403, help='Exponential growth rate for standard coalescent.')
+    parser.add_argument('-b', '--num-sweep', type=int, default=0, help='Number of selective sweeps in coalescent.')
+    parser.add_argument('-f', '--selection-strength', type=float, default=0.01, help='Parameter controlling the strength of selection during the sweeps.')
     parser.add_argument('-n', '--num-cells', type=int, default=250, help='Number of observed cells in sample.')
     parser.add_argument('-n1', '--normal-fraction', type=float, default=0, help='Proportion of cells that are normal.')
     parser.add_argument('-n2', '--pseudonormal-fraction', type=float, default=0, help='Proportion of cells that are pseudonormal cells.')
@@ -76,6 +78,7 @@ def parse_args():
     parser.add_argument('-I', '--interval', type=int, default=3, help='Initializes a point in the coverage distribution every interval number of windows.')
     parser.add_argument('-C', '--coverage', type=float, default=0.1, help='Average sequencing coverage across the genome.')
     parser.add_argument('-R', '--read-length', type=int, default=150, help='Paired-end short read length.')
+    parser.add_argument('-G', '--seq-error', type=float, default=0.02, help='Per base error rate for generating sequence data.')
     parser.add_argument('-P', '--processors', type=int, default=1, help='Number of processes to use for generating reads in parallel.')
     parser.add_argument('-d', '--disable-info', action='store_true', help='Do not output simulation log, cell types, or ground truth events.')
     parser.add_argument('-F', '--param-file', action='store_true', help='Use parameters from the parameter file instead of the command line.')
@@ -102,7 +105,7 @@ def main(args):
     ## Create tree structure
     print('Preparing ground truth tree...')
     founder_events = args['placement_param'] * args['founder_event_mult']
-    tree = make_tumor_tree(args['tree_type'], args['num_cells'], args['normal_fraction'], args['pseudonormal_fraction'], founder_events, args['out_path'], args['growth_rate'], args['tree_path'])
+    tree = make_tumor_tree(args['tree_type'], args['num_cells'], args['normal_fraction'], args['pseudonormal_fraction'], founder_events, args['out_path'], args['growth_rate'], args['tree_path'], args['num_sweep'], args['selection_strength'])
     clone_founders = []
     if args['num_clones'] > 0:
         clone_founders = select_clones(tree, args['num_clones'], args['clone_criteria'], args['clone_mu'], args['clone_sd'])
@@ -186,7 +189,7 @@ def main(args):
         save_CN_profiles(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'profiles.tsv'))
     
     if args['mode'] == 1 or args['mode'] == 2:
-        gen_reads(ref1, ref2, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['region_length'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['out_path'], args['processors'])
+        gen_reads(ref1, ref2, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['region_length'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['seq_error'], args['out_path'], args['processors'])
 
     ## Logging information
     if not args['disable_info']:

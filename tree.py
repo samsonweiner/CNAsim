@@ -1,6 +1,7 @@
 import numpy as np
 import scipy.stats
 import subprocess
+import msprime as ms
 import os
 from collections import deque, Counter
 import copy
@@ -295,7 +296,7 @@ def str_to_newick(newick_str):
     return cur_node
 
 #Tree with random topology by attaching two random leaves. Branch lengths are left undefined.
-def gen_random_topology(m, names = None):
+def gen_tree_random_topology(m, names = None):
     root = Node()
     leaves = [root]
 
@@ -354,7 +355,8 @@ def scale_edge_lengths(tree, place_param):
         else:
             node.length = node.length * scalar
 
-# Calls the ms binary from the given path.
+# OUTDATED
+# Calls the ms binary from the given path. 
 def call_ms(num_cells, out_path, growth_rate):
     seed_vals = np.random.randint(1, 100000, 3)
     temp_path = os.path.join(out_path, 'temp_log')
@@ -371,21 +373,72 @@ def call_ms(num_cells, out_path, growth_rate):
         tree_str = line[:-1]
 
     os.remove(temp_path)
-    #f = open(out_path + 'tree.nwk', 'w+')
-    #f.write(tree_str)
-    #f.close()
     return tree_str
 
-def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_events, out_path, growth_rate, tree_path):
+def gen_tree_standard(num_cells, growth_rate):
+    demo = ms.Demography()
+    demo.add_population(
+        initial_size=0.5,
+        growth_rate=growth_rate
+    )
+    ts = ms.sim_ancestry(
+        samples=num_cells,
+        demography=demo,
+        model=ms.StandardCoalescent(),
+        ploidy=1
+    )
+    tree_str = ts.first().as_newick()
+    return tree_str
+
+def gen_tree_sweep(num_cells, growth_rate, num_sweep, s):
+    demo = ms.Demography()
+    demo.add_population(
+        initial_size=0.5,
+        growth_rate=growth_rate
+    )
+    sampleset = ms.SampleSet(num_cells, ploidy=1)
+    L = 1
+    Ne = min(1e8, num_cells*1e4)
+
+    models = []
+    for i in range(num_sweep):
+        models.append(ms.StandardCoalescent(duration=np.random.uniform()))
+        models.append(
+            ms.SweepGenicSelection(
+                #position=np.random.randint(1, L-1),
+                position=0,
+                start_frequency=1 / (2*Ne),
+                end_frequency=1 - 1 / (2*Ne),
+                s = s,
+                dt = 1/Ne
+            )
+        )
+    models.append(ms.StandardCoalescent())
+
+    ts = ms.sim_ancestry(
+        samples=[sampleset],
+        demography=demo,
+        model=models,
+        sequence_length=L
+    )
+    tree_str = ts.first().as_newick()
+    return tree_str
+
+
+def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_events, out_path, growth_rate, tree_path, num_sweep, s):
     num_normal = round(num_cells * normal_frac)
     num_pseudonormal = round(num_cells * pseudonormal_frac)
     num_aneuploid = num_cells - num_normal - num_pseudonormal
 
     if tree_type == 0:
-        tree_str = call_ms(num_aneuploid, out_path, growth_rate)
+        #if num_sweep > 0:
+        #    tree_str = gen_tree_sweep(num_aneuploid, growth_rate, num_sweep, s)
+        #else:
+        #    tree_str = gen_tree_standard(num_aneuploid, growth_rate)
+        tree_str = call_ms(num_cells, out_path, growth_rate)
         tree = Tree(newick=tree_str)
     elif tree_type == 1:
-        tree = gen_random_topology(num_aneuploid)
+        tree = gen_tree_random_topology(num_aneuploid)
     elif tree_type == 2:
         f = open(tree_path)
         tree_str = f.readline()
