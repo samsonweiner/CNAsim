@@ -3,7 +3,7 @@ import sys
 
 class InputError(Exception):
     def __init__(self, text):
-        self.message = "Cannot access input '" + str(text) + "'"
+        self.message = str(text)
         super().__init__(self.message)
 
 class ChromNameError(Exception):
@@ -50,6 +50,9 @@ def handle_args(arguments):
 
     else:
         args = vars(arguments)
+
+    if not args['normal_fraction'] + args['pseudonormal_fraction'] <= 1.0:
+        raise InputError('Normal and pseudornormal fractions cannot sum to more than 1.')
     return args
 
 #gets chromosome and arm lengths from cytoband file

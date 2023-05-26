@@ -31,6 +31,8 @@ More information can be found in our paper, located here: [link to paper].
 
 [Examples](#Example-commands)
 
+[Using the error model](#Using-the-error-model)
+
 # Installation
 
 CNAsim is written in python and can run reliably on versions 3.7 or later. You can download the source code by cloning this repository:
@@ -120,11 +122,15 @@ python3 main.py -F
 
 ### Simulate a cell lineage tree and subclonal structure
 
-* Commands for generating the cell lineage tree and subclonal populations. The user can specify any combination of tumor, normal, and pseudonormal cells using the -n, -n1, and -n2 parameters. The number of tumor cells will equal the value given by -n if both normal and pseudonormal fractions are set to 0. Otherwise, the number of tumor cells will be the remaining fraction. For example, if -n is set to 100, -n1 is set to 0.1, and -n2 is set to 0.05, there will be 85 tumor cells, 10 normal cells, and 5 pseudonormal cells. Ancestral nodes are selected to represent diverging subclonal populations, the number of which is given by -c. The probability of selecting ancestral nodes are can either be proportional to the size of the induced subtree, or the node's branch length. If the former, users can further control clone sizes by defining a normal distribution (parameters -c2 and -c3). Otherwise, nodes are selected uniformly with respect to tree depth. 
+* Commands for generating the cell lineage tree and subclonal populations. The user can specify any combination of tumor, normal, and pseudonormal cells using the -n, -n1, and -n2 parameters. The number of tumor cells will equal the value given by -n if both normal and pseudonormal fractions are set to 0. Otherwise, the number of tumor cells will be the remaining fraction. For example, if -n is set to 100, -n1 is set to 0.1, and -n2 is set to 0.05, there will be 85 tumor cells, 10 normal cells, and 5 pseudonormal cells. To generate the main tumor lineage, CNAsim simulates an exponentially growing population under neutral coalescence with growth rate given by the -g parameter. Selective sweeps can be introduced at random points during the tumor lifespan using the -s parameter. Once the cell-lineage tree is generated, ancestral nodes can be selected to represent diverging subclonal populations, the number of which is given by -c. The probability of selecting ancestral nodes are can either be proportional to the size of the induced subtree, or the node's branch length. If the former, users can further control clone sizes by defining a normal distribution (parameters -c2 and -c3) over the number of cells belonging to the clone. Otherwise, nodes are selected uniformly with respect to tree depth. 
 
    `-t, --tree-type` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Method to generate topology of main tumor lineage. Option 0 uses *ms* to generate a tree under neutral coalescence. Option 1 generates a random tree topology. Option 2 takes an existing tree from the user in newick format (see the following parameter). Default: 0 
 
-   `-g, --growth-rate` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The exponential growth rate parameter used to generate the tree under neutral coalescence. Default: 15.1403
+   `-g, --growth-rate` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The exponential growth rate parameter used to generate the tree under neutral coalescence. Default: 0.003785
+
+   `-s, --num-sweep` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Number of selective sweeps to introduce throughout the tumor lineage. Default: 0
+
+   `-s1, --selective-strength` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Relative selective strength of the sweeps. Recommended values are 0.01 for weak sweeps, and 0.25 for strong sweeps. For more information, see the msprime documentation. Default: 0.01
 
    `-n, --num-cells` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Number of observed cells in the experiment. Includes all types of cells (tumor, normal, and pseudonormal). Default: 250
 
@@ -156,15 +162,15 @@ python3 main.py -F
 
 * Commands for simulating focal copy number aberrations. The number of focal CNAs chosen along each edge is controlled with the -p1 and -p2 parameters. If option 1 is chosen for the placement type, this means that edges directly above leaves in the tree have a mean number of events equal to the value given by -p2. Under neutral coalescence, this likely means more events will be assigned to edges higher up in the tree. The length of focal CNAs cannot drop below the minimum given by -k, and cannot exceed the length of the chromosome. The -s parameter controls the rate at which an event is chosen to be an amplifciation. If this value is given by *x*, then the rate of deletion is simply *1-x*. 
 
-   `-p1, --placement-type` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The method for choosing the number of events along each edge. Option 0 draws from a Poisson distribution with a fixed mean. Option 1 draws from a Poisson with a mean proportional to edge length. Option 2 is a fixed number per edge. Default: 0
+   `-p, --placement-type` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The method for choosing the number of events along each edge. Option 0 draws from a Poisson distribution with a fixed mean. Option 1 draws from a Poisson with a mean proportional to edge length. Option 2 is a fixed number per edge. Default: 0
 
-   `-p2, --placement-param` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The value to be used in conjunction with the placement method chosen. Default: 2
+   `-p1, --placement-param` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The value to be used in conjunction with the placement method chosen. Default: 2
 
    `-l, --cn-length-mean` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The average length of a focal CNA in number of base pairs. Default: 5 Mbp
 
-   `-l2, --min-cn-length` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Minimum copy number event length in bp. Should be at minimum the region length and no greater than the mean. Default: 1000 bp
+   `-l1, --min-cn-length` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Minimum copy number event length in bp. Should be at minimum the region length and no greater than the mean. Default: 1000 bp
 
-   `-s, --cn-event-rate` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The probability that an event is an amplification. Default: 0.5
+   `-b, --cn-event-rate` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The probability that an event is an amplification. Default: 0.5
 
    `-a, --cn-copy-param` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Parameter used in a geometric distribution to choose the number of additional copies to add for amplification events. Default: 0.5
 
@@ -178,11 +184,11 @@ python3 main.py -F
 
    `-q, --chrom-arm-rate` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The probability that a given chromosomal CNA is a chromosome-arm event. Default: 0.75
 
-   `-i1, --chrom-rate-founder` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The mean number of chromosomal CNAs along the edge into the founder cell. Default: 2
+   `-i, --chrom-rate-founder` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The mean number of chromosomal CNAs along the edge into the founder cell. Default: 2
 
-   `-i2, --chrom-rate-super-clone` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The mean number of chromosomal CNAs along the two edges out of the founder cell. Default: 1
+   `-i1, --chrom-rate-super-clone` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The mean number of chromosomal CNAs along the two edges out of the founder cell. Default: 1
 
-   `-i3, --chrom-rate-clone` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The mean number of chromosomal CNAs along edges into ancestral nodes representing clonal founders. Default: 1
+   `-i2, --chrom-rate-clone` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The mean number of chromosomal CNAs along edges into ancestral nodes representing clonal founders. Default: 1
 
    `-u, --chrom-event-type` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The probability that a chromosomal event is a duplication. Default: 0.5
 
@@ -196,7 +202,7 @@ python3 main.py -F
 
    `-E2, --error-rate-2` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The error rate used for adding random jitter in the copy number profiles. Default: 0
 
-     `-O, --output-clean-CNP` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; If run in CNP mode with the error model, outputs the clean CNPs in addition to the noisy ones. Default: False
+   `-O, --output-clean-CNP` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; If run in CNP mode with the error model, outputs the clean CNPs in addition to the noisy ones. Default: False
 
 * Commands for generating sequencing reads. For each observed cell, CNAsim builds a reference based on its evolved genome and makes system calls to *dwgsim* to generate the reads themselves. The average read depth (coverage) across the entire genome is given by -C, and is used to compute the expected read count of a given region. To use uniform coverage, toggle the -M parameter. In practice, this is an oversimplification of single-cell sequencing technologies, however doing so will reduce the time it takes to generate reads by roughly 1/4th. 
 
@@ -204,7 +210,11 @@ python3 main.py -F
 
    `-M, --use-uniform-coverage` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Assumes uniform coverage across the genome. Default: False
 
-* Commands for controlling read counts and coverage. If non-uniform coverage is used, the genome is divided into non-overlapping windows with length given by -W. Reads are generated for each window independently thereby creating region-specific variation in read counts. The degree of coverage non-uniformity is defined by a point on the lorenz curve, which can measure a wide variety of single-cell sequencing technologies (see [this paper](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008012)). This is used to create a coverage distribution across the windows. The -I parameter controls at what interval a window draws an independent read depth from the coverage distribution. The read depths of windows inbetween each interval are connected via bezier curves to create smooth transitions. Basically, using smaller intervals results in more peaks and troughs, while using larger intervals results in fewer peaks and troughs. Generating whole genome sequencing reads can require a lot of computational resources, so there is the option to parallelize this step. This is recommended for larger datasets.
+   `-R, --read-length` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The length of paired-end short reads. Default: 150
+
+   `-S, --seq-error` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The rate of sequencing errors. Default: 0.02
+
+* Commands for controlling coverage non-uniformity. If non-uniform coverage is used, the genome is divided into non-overlapping windows with length given by -W. Reads are generated for each window independently thereby creating region-specific variation in read counts. The degree of coverage non-uniformity is defined by a point on the lorenz curve, which can measure a wide variety of single-cell sequencing technologies (see [this paper](https://journals.plos.org/ploscompbiol/article?id=10.1371/journal.pcbi.1008012)). This is used to create a coverage distribution across the windows. The -I parameter controls at what interval a window draws an independent read depth from the coverage distribution. The read depths of windows inbetween each interval are connected via bezier curves to create smooth transitions. Basically, using smaller intervals results in more peaks and troughs, while using larger intervals results in fewer peaks and troughs. Generating whole genome sequencing reads can require a lot of computational resources, so there is the option to parallelize this step. This is recommended for larger datasets.
 
    `-W, --window-size` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The size of genomic segments to generate reads for at each iteration. Default: 1 Mbp
 
@@ -214,7 +224,6 @@ python3 main.py -F
 
    `-Y, --lorenz-y` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The value of the y-coordinate for the point on the lorenz curve. Default: 0.4
 
-   `-R, --read-length` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The length of paired-end short reads. Default: 150
 
 
 For a complete list of parameters, use the *--help* parameter.
@@ -239,14 +248,50 @@ python main.py -m 0 -n 100 -c 3 -v -U -B 500000 -E1 0.04 -E2 0.1
 ## 3. Generating whole-genome sequencing reads of 100 tumor cells assuming read depth nonuniformity of MALBAC
 
 ```
-python main.py -m 1 -n 100 -r hg38.fa -U -C 25 -X 0.5 -Y 0.27 
+python main.py -m 1 -n 100 -r1 hg38.fa -U -C 25 -X 0.5 -Y 0.27 
 ```
 
 ## 4. Mimicing large-scale whole-genome 10x genomics breast cancer dataset with ultra-low coverage with synthetic reads and ground truth copy number profiles leveraging 8 cores.
 
 ```
-python main.py -m 2 -n 10000 -n1 0.4 -n2 0.05 -c 7 -c2 100 -c3 50 -r path/to/hg38.fa -U -w -v -u 0.2 -C 0.02 -k 10000 -B 5000000 -P 8
+python main.py -m 2 -n 10000 -n1 0.4 -n2 0.05 -c 7 -c2 100 -c3 50 -r1 path/to/hg38.fa -U -w -v -u 0.2 -C 0.02 -k 10000 -B 5000000 -P 8
 ```
 It should be noted that even with very low coverage, the above command will take a substantial amount of time (estimated at ~100 hours). When generating sequencing data for a large number of cells, it is *strongly* recommended to make use of parallelization.
 
 ## 
+
+# Using the error model
+
+CNAsim can bypass the explicit generation of reads and simulate copy number profiles directly with error patterns of existing CNA detection algorithms. Assuming the precision and recall values of a particular variant caller are known, the same precision and recall values can be achieved in the noisy CNPs outputted by CNAsim with the correct combination of boundary error rate (-E1) and jitter error rate (-E2).
+
+Included in the source code is the script `eval_error.py` which can be used to obtain the precision/recall of a particular set of simulation parameters. To use the script, run the simulator with the -O flag to output the clean CNPs in addition to the noisy ones. Then, use the script as follows:
+```
+python eval_error.py -p /path/to/data/directory -t tolerance
+```
+Here, *tolerance* represents the distance from the predicted breakpoint to the groundtruth breakpoint in terms of number of bins. If the predicted breakpoint is within the distance threshold, it is counted as correct. By default, the tolerance is set to 0, meaning the predicted breakpoint must match up directly with the ground truth.
+
+Finding the correct combination of boundary and jitter error rates to yield a particular precision/recall can be tedious. The following table can be used as a starting point. In general, increasing the jitter error decreases precision, and increasing the boundary error decreases recall. Note that these precision/recall rates were derived using CNAsim with default parameter values and 100 cells.
+
+## Sample error rate combinations
+| E1   | E2   | Precision | Recall |   |   |   |   |   |   |
+|------|------|-----------|--------|---|---|---|---|---|---|
+| 0.01 | 0.05 | 0.963     | 0.956  |   |   |   |   |   |   |
+|      | 0.1  | 0.850     | 0.940  |   |   |   |   |   |   |
+|      | 0.15 | 0.616     | 0.934  |   |   |   |   |   |   |
+| 0.02 | 0.05 | 0.905     | 0.860  |   |   |   |   |   |   |
+|      | 0.1  | 0.774     | 0.856  |   |   |   |   |   |   |
+|      | 0.15 | 0.619     | 0.858  |   |   |   |   |   |   |
+| 0.04 | 0.05 | 0.841     | 0.762  |   |   |   |   |   |   |
+|      | 0.1  | 0.738     | 0.784  |   |   |   |   |   |   |
+|      | 0.15 | 0.527     | 0.757  |   |   |   |   |   |   |
+| 0.06 | 0.05 | 0.830     | 0.727  |   |   |   |   |   |   |
+|      | 0.1  | 0.687     | 0.670  |   |   |   |   |   |   |
+|      | 0.15 | 0.568     | 0.725  |   |   |   |   |   |   |
+| 0.1  | 0.05 | 0.744     | 0.598  |   |   |   |   |   |   |
+|      | 0.1  | 0.645     | 0.619  |   |   |   |   |   |   |
+|      | 0.15 | 0.478     | 0.624  |   |   |   |   |   |   |
+| 0.14 | 0.05 | 0.709     | 0.550  |   |   |   |   |   |   |
+|      | 0.1  | 0.624     | 0.577  |   |   |   |   |   |   |
+|      | 0.15 | 0.464     | 0.568  |   |   |   |   |   |   |
+
+In practice, the precision and recall of an existing method may not be known. While less efficient than generating CNPs directly, CNAsim can be used to evaluate the precision/recall of existing CNA detection algorithms using sequencing data. First,run CNAsim under mode set to 2 in order to output both ground truth copy number profiles and sequencing reads. Second, apply the CNA detection algorithm to the sequencing reads to obtain 'noisy' copy number profiles. Third, apply the `eval_error.py` script as described above. This will yield the precision and recall of the algorithm. The benefit of doing this process is that for any subsequent experiments that require CNP data, the user can generate the CNPs directly with error patterns representative of the existing CNA detection algorithm.

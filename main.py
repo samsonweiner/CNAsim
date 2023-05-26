@@ -19,8 +19,6 @@ import argparse
 import os
 import time
 
-
-
 from tree import *
 from sim_genomes import init_diploid_genome, evolve_tree
 from sequence import read_fasta
@@ -37,9 +35,9 @@ def parse_args():
     parser.add_argument('-o', '--out-path', type=str, default='CNAsim_output/', help='Path to output directory.')
     parser.add_argument('-t', '--tree-type', type=int, default=0, help='0: coalescence, 1: random, 2: from file (use -T to specify file path).')
     parser.add_argument('-T', '--tree-path', type=str, default=None, help='Path to input tree.')
-    parser.add_argument('-g', '--growth-rate', type=float, default=15.1403, help='Exponential growth rate for standard coalescent.')
-    parser.add_argument('-b', '--num-sweep', type=int, default=0, help='Number of selective sweeps in coalescent.')
-    parser.add_argument('-f', '--selection-strength', type=float, default=0.01, help='Parameter controlling the strength of selection during the sweeps.')
+    parser.add_argument('-g', '--growth-rate', type=float, default=0.003785, help='Exponential growth rate for standard coalescent.')
+    parser.add_argument('-s', '--num-sweep', type=int, default=0, help='Number of selective sweeps in coalescent.')
+    parser.add_argument('-s1', '--selection-strength', type=float, default=0.01, help='Parameter controlling the strength of selection during the sweeps.')
     parser.add_argument('-n', '--num-cells', type=int, default=250, help='Number of observed cells in sample.')
     parser.add_argument('-n1', '--normal-fraction', type=float, default=0, help='Proportion of cells that are normal.')
     parser.add_argument('-n2', '--pseudonormal-fraction', type=float, default=0, help='Proportion of cells that are pseudonormal cells.')
@@ -47,20 +45,20 @@ def parse_args():
     parser.add_argument('-c1', '--clone-criteria', type=int, default=0, help='Criteria to choose clonal ancesters. 0: proportional to number of leaves in subtree. 1: proportional to edge length')
     parser.add_argument('-c2', '--clone-mu', type=float, default=None, help='Mean number of leaves in a subclone. Must select 0 for clone-criteria.')
     parser.add_argument('-c3', '--clone-sd', type=float, default=None, help='SD in the number of leaves in a subclone. Must select 0 for clone-criteria.')
-    parser.add_argument('-p1', '--placement-type', type=int, default=0, help='Number of CNAs per edge. 0: draw from a Poisson with fixed mean, 1: draw from a Poisson with mean prop to edge length, 2: fixed per edge')
-    parser.add_argument('-p2', '--placement-param', type=float, default=2, help='Parameter for placement choice.')
+    parser.add_argument('-p', '--placement-type', type=int, default=0, help='Number of CNAs per edge. 0: draw from a Poisson with fixed mean, 1: draw from a Poisson with mean prop to edge length, 2: fixed per edge')
+    parser.add_argument('-p1', '--placement-param', type=float, default=2, help='Parameter for placement choice.')
     parser.add_argument('-k', '--region-length', type=int, default=1000, help='Region length in bp. Essentially controls the resolution of the simulated genome.')
     parser.add_argument('-l', '--cn-length-mean', type=int, default=5000000, help='Mean copy number event length in bp.')
-    parser.add_argument('-l2', '--min-cn-length', type=int, default=1000, help='Minimum copy number event length in bp. Should be at minimum the region length and less than the mean.')
+    parser.add_argument('-l1', '--min-cn-length', type=int, default=1000, help='Minimum copy number event length in bp. Should be at minimum the region length and less than the mean.')
     parser.add_argument('-a', '--cn-copy-param', type=float, default=0.5, help='Parameter in the geometric to select number of copies.')
-    parser.add_argument('-s', '--cn-event-rate', type=float, default=0.5, help='Probability an event is an amplification. Deletion rate is 1 - amp rate.')
+    parser.add_argument('-b', '--cn-event-rate', type=float, default=0.5, help='Probability an event is an amplification. Deletion rate is 1 - amp rate.')
     parser.add_argument('-j', '--founder-event-mult', type=int, default=10, help='Multiplier for the number of events along edge into founder cell.')
     parser.add_argument('-w', '--WGD', action='store_true', help='Include WGD.')
     parser.add_argument('-v', '--chrom-level-event', action='store_true', help='Include chromosomal alterations.')
     parser.add_argument('-q', '--chrom-arm-rate', type=float, default=0.75, help='Probability that a chromosomal event is a chromosome-arm event.')
-    parser.add_argument('-i1', '--chrom-rate-founder', type=float, default=2, help='Parameter in poisson for number of chromosome-level events along the edge into the founder cell.')
-    parser.add_argument('-i2', '--chrom-rate-super-clone', type=float, default=1, help='Parameter in poisson for number of chromosome-level events along the edges out of the founder cell.')
-    parser.add_argument('-i3', '--chrom-rate-clone', type=float, default=1, help='Parameter in poisson for number of chrom-level events for clonal nodes.')
+    parser.add_argument('-i', '--chrom-rate-founder', type=float, default=2, help='Parameter in poisson for number of chromosome-level events along the edge into the founder cell.')
+    parser.add_argument('-i1', '--chrom-rate-super-clone', type=float, default=1, help='Parameter in poisson for number of chromosome-level events along the edges out of the founder cell.')
+    parser.add_argument('-i2', '--chrom-rate-clone', type=float, default=1, help='Parameter in poisson for number of chrom-level events for clonal nodes.')
     parser.add_argument('-u', '--chrom-event-type', type=float, default=0.5, help='Probability that a chromosomal event is a duplication.')
     parser.add_argument('-N', '--num-chromosomes', type=int, default=22, help='Number of chromosomes.')
     parser.add_argument('-L', '--chrom-length', type=int, default=100000000, help='Length of chromosomes in bp if not using hg38 static.')
@@ -80,7 +78,7 @@ def parse_args():
     parser.add_argument('-I', '--interval', type=int, default=3, help='Initializes a point in the coverage distribution every interval number of windows.')
     parser.add_argument('-C', '--coverage', type=float, default=0.1, help='Average sequencing coverage across the genome.')
     parser.add_argument('-R', '--read-length', type=int, default=150, help='Paired-end short read length.')
-    parser.add_argument('-G', '--seq-error', type=float, default=0.02, help='Per base error rate for generating sequence data.')
+    parser.add_argument('-S', '--seq-error', type=float, default=0.02, help='Per base error rate for generating sequence data.')
     parser.add_argument('-P', '--processors', type=int, default=1, help='Number of processes to use for generating reads in parallel.')
     parser.add_argument('-d', '--disable-info', action='store_true', help='Do not output simulation log, cell types, or ground truth events.')
     parser.add_argument('-F', '--param-file', action='store_true', help='Use parameters from the parameter file instead of the command line.')
@@ -125,14 +123,14 @@ def main(args):
     print('Initializing reference genome...')
     if args['reference']:
         if not os.path.isfile(args['reference']):
-            raise InputError(args['reference'])
+            raise InputError("Cannot access input " + str(args['reference']))
         ref1, chrom_lens = read_fasta(args['reference'])
         chrom_lens.pop('chrX', None)
         chrom_lens.pop('chrY', None)
         chrom_names = list(chrom_lens.keys())
         if args['alt_reference']:
             if not os.path.isfile(args['alt_reference']):
-                raise InputError(args['alt_reference'])
+                raise InputError("Cannot access input " + str(args['alt_reference']))
             ref2, alt_chrom_lens = read_fasta(args['alt_reference'])
             alt_chrom_lens.pop('chrX', None)
             alt_chrom_lens.pop('chrY', None)
@@ -142,7 +140,7 @@ def main(args):
             ref2 = ref1
     else:
         if args['mode'] == 1 or args['mode'] == 2:
-            raise InputError(args['reference'])
+            raise InputError("Cannot access input " + str(args['reference']))
         chrom_names = ['chr' + str(i+1) for i in range(args['num_chromosomes'])]
         chrom_lens = dict(zip(chrom_names, [args['chrom_length'] for i in range(args['num_chromosomes'])]))
 

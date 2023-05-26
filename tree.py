@@ -157,7 +157,6 @@ class Tree:
         self.founder = None
         if newick:
             self.root = str_to_newick(newick)
-        self.cell_names = [node.name for node in self.iter_leaves()]
 
     def __len__(self):
         return len([leaf for leaf in self.iter_leaves()])
@@ -207,7 +206,6 @@ class Tree:
             if leaf.name == '':
                 leaf.name = 'cell' + str(count)
                 count += 1
-        self.cell_names = [node.name for node in self.iter_leaves()]
 
     def set_node_names(self):
         internalcount = 1
@@ -234,7 +232,6 @@ class Tree:
                 else:
                     node.name = 'ancestor' + str(internalcount)
                     internalcount += 1
-        self.cell_names = [node.name for node in self.iter_leaves()]
 
     def get_tree_height(self):
         return self.root.get_height()
@@ -433,20 +430,23 @@ def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_e
         num_pseudonormal = round(num_cells * pseudonormal_frac)
     num_aneuploid = num_cells - num_normal - num_pseudonormal
 
-    if tree_type == 0:
-        #if num_sweep > 0:
-        #    tree_str = gen_tree_sweep(num_aneuploid, growth_rate, num_sweep, s)
-        #else:
-        #    tree_str = gen_tree_standard(num_aneuploid, growth_rate)
-        tree_str = call_ms(num_cells, out_path, growth_rate)
-        tree = Tree(newick=tree_str)
-    elif tree_type == 1:
-        tree = gen_tree_random_topology(num_aneuploid)
-    elif tree_type == 2:
-        f = open(tree_path)
-        tree_str = f.readline()
-        f.close()
-        tree = Tree(newick=tree_str)
+    if num_aneuploid > 0:
+        if tree_type == 0:
+            if num_sweep > 0:
+                tree_str = gen_tree_sweep(num_aneuploid, growth_rate, num_sweep, s)
+            else:
+                tree_str = gen_tree_standard(num_aneuploid, growth_rate)
+            #tree_str = call_ms(num_aneuploid, out_path, growth_rate)
+            tree = Tree(newick=tree_str)
+        elif tree_type == 1:
+            tree = gen_tree_random_topology(num_aneuploid)
+        elif tree_type == 2:
+            f = open(tree_path)
+            tree_str = f.readline()
+            f.close()
+            tree = Tree(newick=tree_str)
+    else:
+        tree = Tree()
     
     # Create a new root node and add normal cells as children.
     if num_normal > 0:
@@ -484,25 +484,34 @@ def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_e
                 next_int.set_child(n)
             cur_node.set_child(next_int)
             cur_node = next_int
-        tree.root.events = [None for i in range(root_events - cur_mut)]
+        if num_aneuploid > 0:
+            tree.root.events = [None for i in range(root_events - cur_mut)]
 
     # Make updates to the tree structure accordingly
-    tree.set_founder(tree.root)
-    if num_normal > 0 and num_pseudonormal == 0:
-        norm_root.set_child(tree.root)
-        tree.root = norm_root
-    elif num_normal == 0 and num_pseudonormal > 0:
-        cur_node.set_child(tree.root)
-        tree.root = psnorm_root
-    elif num_normal > 0 and num_pseudonormal > 0:
-        norm_root.set_child(psnorm_root)
-        cur_node.set_child(tree.root)
-        tree.root = norm_root
-    else:
-        if root_events == 0:
-            tree.root.events = []
+    if num_aneuploid > 0:
+        tree.set_founder(tree.root)
+        if num_normal > 0 and num_pseudonormal == 0:
+            norm_root.set_child(tree.root)
+            tree.root = norm_root
+        elif num_normal == 0 and num_pseudonormal > 0:
+            cur_node.set_child(tree.root)
+            tree.root = psnorm_root
+        elif num_normal > 0 and num_pseudonormal > 0:
+            norm_root.set_child(psnorm_root)
+            cur_node.set_child(tree.root)
+            tree.root = norm_root
         else:
-            tree.root.events = [None for i in range(root_events)]
+            if root_events == 0:
+                tree.root.events = []
+            else:
+                tree.root.events = [None for i in range(root_events)]
+    else:
+        if num_normal > 0:
+            tree.root = norm_root
+            if num_pseudonormal > 0:
+                tree.root.set_child(psnorm_root)
+        elif num_pseudonormal > 0:
+            tree.root = psnorm_root
 
     return tree
 
