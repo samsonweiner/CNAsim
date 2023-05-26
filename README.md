@@ -273,25 +273,19 @@ Here, *tolerance* represents the distance from the predicted breakpoint to the g
 Finding the correct combination of boundary and jitter error rates to yield a particular precision/recall can be tedious. The following table can be used as a starting point. In general, increasing the jitter error decreases precision, and increasing the boundary error decreases recall. Note that these precision/recall rates were derived using CNAsim with default parameter values and 100 cells.
 
 ## Sample error rate combinations
-| E1   | E2   | Precision | Recall |   |   |   |   |   |   |
-|------|------|-----------|--------|---|---|---|---|---|---|
-| 0.01 | 0.05 | 0.963     | 0.956  |   |   |   |   |   |   |
-|      | 0.1  | 0.850     | 0.940  |   |   |   |   |   |   |
-|      | 0.15 | 0.616     | 0.934  |   |   |   |   |   |   |
-| 0.02 | 0.05 | 0.905     | 0.860  |   |   |   |   |   |   |
-|      | 0.1  | 0.774     | 0.856  |   |   |   |   |   |   |
-|      | 0.15 | 0.619     | 0.858  |   |   |   |   |   |   |
-| 0.04 | 0.05 | 0.841     | 0.762  |   |   |   |   |   |   |
-|      | 0.1  | 0.738     | 0.784  |   |   |   |   |   |   |
-|      | 0.15 | 0.527     | 0.757  |   |   |   |   |   |   |
-| 0.06 | 0.05 | 0.830     | 0.727  |   |   |   |   |   |   |
-|      | 0.1  | 0.687     | 0.670  |   |   |   |   |   |   |
-|      | 0.15 | 0.568     | 0.725  |   |   |   |   |   |   |
-| 0.1  | 0.05 | 0.744     | 0.598  |   |   |   |   |   |   |
-|      | 0.1  | 0.645     | 0.619  |   |   |   |   |   |   |
-|      | 0.15 | 0.478     | 0.624  |   |   |   |   |   |   |
-| 0.14 | 0.05 | 0.709     | 0.550  |   |   |   |   |   |   |
-|      | 0.1  | 0.624     | 0.577  |   |   |   |   |   |   |
-|      | 0.15 | 0.464     | 0.568  |   |   |   |   |   |   |
+| E1   | E2   | Precision | Recall |         | E1   | E2   | Precision | Recall |
+|------|------|-----------|--------|---------|------|------|-----------|--------|
+| 0.01 | 0.05 |   0.963   |  0.956 |         | 0.02 | 0.05 |   0.905   |  0.860 |
+|      |  0.1 |   0.850   |  0.940 |         |      |  0.1 |   0.774   |  0.856 |
+|      | 0.15 |   0.616   |  0.934 |         |      | 0.15 |   0.619   |  0.858 |
+| 0.04 | 0.05 |   0.841   |  0.762 |         | 0.06 | 0.05 |   0.830   |  0.727 |
+|      |  0.1 |   0.738   |  0.784 |         |      |  0.1 |   0.687   |  0.670 |
+|      | 0.15 |   0.527   |  0.757 |         |      | 0.15 |   0.568   |  0.725 |
+| 0.08 | 0.05 |   0.775   |  0.662 |         |  0.1 | 0.05 |   0.744   |  0.598 |
+|      |  0.1 |   0.643   |  0.654 |         |      |  0.1 |   0.645   |  0.619 |
+|      | 0.15 |   0.512   |  0.662 |         |      | 0.15 |   0.478   |  0.624 |
+| 0.12 | 0.05 |   0.721   |  0.580 |         | 0.14 | 0.05 |   0.709   |  0.550 |
+|      |  0.1 |   0.604   |  0.587 |         |      |  0.1 |   0.624   |  0.577 |
+|      | 0.15 |   0.437   |  0.583 |         |      | 0.15 |   0.464   |  0.568 |
 
 In practice, the precision and recall of an existing method may not be known. While less efficient than generating CNPs directly, CNAsim can be used to evaluate the precision/recall of existing CNA detection algorithms using sequencing data. First,run CNAsim under mode set to 2 in order to output both ground truth copy number profiles and sequencing reads. Second, apply the CNA detection algorithm to the sequencing reads to obtain 'noisy' copy number profiles. Third, apply the `eval_error.py` script as described above. This will yield the precision and recall of the algorithm. The benefit of doing this process is that for any subsequent experiments that require CNP data, the user can generate the CNPs directly with error patterns representative of the existing CNA detection algorithm.
