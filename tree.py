@@ -427,7 +427,10 @@ def gen_tree_sweep(num_cells, growth_rate, num_sweep, s):
 
 def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_events, out_path, growth_rate, tree_path, num_sweep, s):
     num_normal = round(num_cells * normal_frac)
-    num_pseudonormal = round(num_cells * pseudonormal_frac)
+    if root_events == 0:
+        num_pseudonormal = 0
+    else:
+        num_pseudonormal = round(num_cells * pseudonormal_frac)
     num_aneuploid = num_cells - num_normal - num_pseudonormal
 
     if tree_type == 0:
@@ -496,7 +499,10 @@ def make_tumor_tree(tree_type, num_cells, normal_frac, pseudonormal_frac, root_e
         cur_node.set_child(tree.root)
         tree.root = norm_root
     else:
-        tree.root.events = [None for i in range(root_events)]
+        if root_events == 0:
+            tree.root.events = []
+        else:
+            tree.root.events = [None for i in range(root_events)]
 
     return tree
 

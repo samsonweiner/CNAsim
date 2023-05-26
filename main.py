@@ -19,6 +19,8 @@ import argparse
 import os
 import time
 
+
+
 from tree import *
 from sim_genomes import init_diploid_genome, evolve_tree
 from sequence import read_fasta
@@ -148,11 +150,11 @@ def main(args):
         file_path = os.path.realpath(__file__)
         sim_dir_path, filename = os.path.split(file_path)
         if not args['reference']:
-            chrom_lens, arm_ratios = hg38_chrom_lengths_from_cytoband(os.path.join(sim_dir_path, 'resources/cytoBand.txt'), include_allosomes=False, include_arms=True)
+            chrom_lens, arm_ratios = hg38_chrom_lengths_from_cytoband(include_allosomes=False, include_arms=True)
             if args['num_chromosomes'] > 22:
                 raise ChromNumError()
         else:
-            temp, arm_ratios = hg38_chrom_lengths_from_cytoband(os.path.join(sim_dir_path, 'resources/cytoBand.txt'), include_allosomes=False, include_arms=True)
+            temp, arm_ratios = hg38_chrom_lengths_from_cytoband(include_allosomes=False, include_arms=True)
             for chrom in chrom_names:
                 if chrom not in arm_ratios:
                     raise ChromNameError()

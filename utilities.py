@@ -53,7 +53,7 @@ def handle_args(arguments):
     return args
 
 #gets chromosome and arm lengths from cytoband file
-def hg38_chrom_lengths_from_cytoband(file_path, include_allosomes=False, include_arms=False):
+def hg38_chrom_lengths_from_cytoband_file(file_path, include_allosomes=False, include_arms=False):
     chrom_lens, arm_ratios = {}, {}
 
     f = open(file_path)
@@ -79,6 +79,20 @@ def hg38_chrom_lengths_from_cytoband(file_path, include_allosomes=False, include
         return chrom_lens, arm_ratios
     else:
         return chrom_lens
+    
+def hg38_chrom_lengths_from_cytoband(include_allosomes=False, include_arms=False):
+    chrom_lens = {'chr1': 249250621, 'chr10': 135534747, 'chr11': 135006516, 'chr12': 133851895, 'chr13': 115169878, 'chr14': 107349540, 'chr15': 102531392, 'chr16': 90354753, 'chr17': 81195210, 'chr18': 78077248, 'chr19': 59128983, 'chr2': 243199373, 'chr20': 63025520, 'chr21': 48129895, 'chr22': 51304566, 'chr3': 198022430, 'chr4': 191154276, 'chr5': 180915260, 'chr6': 171115067, 'chr7': 159138663, 'chr8': 146364022, 'chr9': 141213431, 'chrX': 155270560, 'chrY': 59373566}
+    arm_ratios = {'chr1': 0.5015, 'chr10': 0.2966, 'chr11': 0.39776, 'chr12': 0.26746, 'chr13': 0.15542, 'chr14': 0.16395, 'chr15': 0.18531, 'chr16': 0.40507, 'chr17': 0.29558, 'chr18': 0.22029, 'chr19': 0.44817, 'chr2': 0.38364, 'chr20': 0.43633, 'chr21': 0.27426, 'chr22': 0.28652, 'chr3': 0.45954, 'chr4': 0.26366, 'chr5': 0.26753, 'chr6': 0.35649, 'chr7': 0.3764, 'chr8': 0.31155, 'chr9': 0.34699, 'chrX': 0.39029, 'chrY': 0.21053}
+    if not include_allosomes:
+        del chrom_lens['chrX']
+        del chrom_lens['chrY']
+        del arm_ratios['chrX']
+        del arm_ratios['chrY']
+    if include_arms:
+        return chrom_lens, arm_ratios
+    else:
+        return chrom_lens
+    
 
 # Summary sim stats 
 def summary(tree, out_path, num_chroms, WGD, region_length):
