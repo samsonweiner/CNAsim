@@ -1,5 +1,4 @@
-from tree import Node, Tree
-from math import floor, ceil
+import numpy as np
 from collections import Counter
 
 def get_genomes(tree):
@@ -24,7 +23,7 @@ def format_CN_profiles(tree, normal_diploid_genome, num_chroms, region_length, b
 
     # Assign regions to bins
     bins, bin_coords = {}, {}
-    regions_per_bin = floor(bin_len / region_length)
+    regions_per_bin = np.floor(bin_len / region_length)
     for chrom in range(num_chroms):
         bins[chrom], bin_coords[chrom] = {}, {}
         bin_count = 0
