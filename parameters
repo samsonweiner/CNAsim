@@ -10,7 +10,9 @@
 [0] Cell tree generation type. 0: ms, 1: random, 2: from file use *-T to specify file path*. (--tree-type)
 [None] Path to input tree if tree-type option 2. (--tree-path)
 [25] Number of observed cells in the tree (--num_cells).
-[15.1403] Exponential growth rate used in ms. (--growth-rate)
+[0.003785] Exponential growth rate used in ms. (--growth-rate)
+[0] Number of selective sweeps in the coalescent. (--num-sweep)
+[0.01] Strength of the selective sweeps. (--selection-strength)
 [250] Number of observed cells in sample. (--num-cells)
 [0] Proportion of cells that are normal. (--normal-fraction)
 [0] Proportion of cells that are pseudonormal cells. (--pseudonormal-fraction)

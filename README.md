@@ -35,7 +35,11 @@ More information can be found in our paper, located here: [link to paper].
 
 # Installation
 
-CNAsim is written in python and can run reliably on versions 3.7 or later. You can download the source code by cloning this repository:
+CNAsim is written in python and runs reliably on versions 3.7 - 3.10. For Mac and Linux users, a standalone executable of CNAsim is available and can be downloaded from [here](https://compbio.engr.uconn.edu/software/CNAsim/). 
+
+Otherwise, users with a python interpreter can use CNAsim by downloading the source code and setting up an environment with all the necessary packages. The remainder of this section provides instructions on how to install CNAsim this way.
+
+You can download the source code by cloning this repository:
 
 ```
 git clone https://github.com/samsonweiner/CNAsim.git
@@ -58,7 +62,7 @@ pip install numpy scipy msprime biopython pyfaidx
 
 If using `conda`, it is highly recommended that you create a fresh environment with a compatible python version before installing the packages. You can do so with the following.
 ```
-conda create -n CNAsim python=3.7
+conda create -n CNAsim
 conda activate CNAsim
 
 conda config --env --add channels conda-forge 
@@ -80,9 +84,9 @@ Both packages may be installed with `conda`.
 ```
 conda install -c bioconda samtools dwgsim
 ```
-You may follow the installation guides with the links provided. If this option is used, the downloaded binaries must be compiled and the directories containing each binary must be added to your `$PATH` variable. For example,
+You can also install the packages individually by following the instructions found on the package homepage. If this option is used, the downloaded binaries must be compiled and the directories containing each binary must be added to your `$PATH` variable. For example,
 ```
-export PATH=/path/to/msdir:$PATH
+export PATH=/path/to/bin:$PATH
 ```
 You may also wish to add this line to your *~/.bashrc* or */.bash_profile* configuration file to avoid having to retype this command on login. 
 
@@ -90,14 +94,22 @@ You may also wish to add this line to your *~/.bashrc* or */.bash_profile* confi
 
 CNAsim roughly follows three stages: simulate a cell lineage tree and subclonal structure, simulate genomes and evolution, and generate single-cell data. The following documentation details the relevant parameters organized according to these three stages.
 
-To run CNAsim, call the main.py file with the desired parameters in the command line. Users must specify the simulator mode (-m, --mode) of which there are three choices. Pass **0** to generate copy number profiles (CNP mode), **1** to generate sequencing data (seq mode), or **2** to generate both.
+To run CNAsim, run the executable with the desired parameters in the command line. Users must specify the simulator mode (-m, --mode) of which there are three choices. Pass **0** to generate copy number profiles (CNP mode), **1** to generate sequencing data (seq mode), or **2** to generate both.
+
+```
+./CNAsim -m mode [options]
+```
+
+Users running CNAsim through python should instead call the main.py file, but all other commands and parameters should be the same.
 
 ```
 python3 main.py -m mode [options]
 ```
-Alternatively, you can modify the provided *parameters* file and toggle the *-F* option.
+
+Instead of inputing each parameter in the command line, you can modify the provided *parameters* file and toggle the *-F* option.
 ```
-python3 main.py -F
+./CNAsim -F
+python main.py -F
 ```
 
 ### I/O and Utilities
@@ -228,6 +240,7 @@ python3 main.py -F
 
 For a complete list of parameters, use the *--help* parameter.
 ```
+./CNAsim --help
 python main.py --help
 ```
 
