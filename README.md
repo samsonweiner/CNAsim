@@ -3,9 +3,9 @@
 CNAsim is a software package for improved simulation of single-cell copy number alteration (CNA) data from tumors. CNAsim can be used to generate copy number profiles with noise patterns that mimic those of single-cell CNA detection algorithms, and to generate DNA-seq data for sampled cells. It offers significantly improved scalability, a high degree of customizability, and improved biological realism of simulated data. CNAsim can be cited as follows:
 
 
-CNAsim: Improved simulation of single-cell copy number profiles and DNA-seq data from tumors<br>
+<a href="https://doi.org/10.1093/bioinformatics/btad434">CNAsim: Improved simulation of single-cell copy number profiles and DNA-seq data from tumors</a><br>
 Samson Weiner and Mukul S. Bansal<br>
-Under review
+Bioinformatics; in press.
 
 <!--
 More information can be found in our paper, located here: [link to paper].
