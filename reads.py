@@ -122,21 +122,38 @@ def gen_reads_cell(cell, ref1, ref2, num_regions, chrom_names, region_length, un
     prefix = os.path.join(out_path, cell.name)
     for allele, cur_ref in enumerate([ref1, ref2]):
         cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', cur_ref, chrom_names, num_regions, region_length, allele, prefix)
-        if uniform_coverage:
+        '''
+        #if uniform_coverage:
+            ## Samples reads whole genome at a time
+            genome_len = sum([v for i,v in chrom_lens.items()])
+            exp_reads = (genome_len*coverage) / (2*read_len)
+
+            readcount = poisson.rvs(exp_reads)
+            seed = np.random.randint(1, 10000000)
+            proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), cell_ref, cell_ref[:-3]], capture_output=True, text=True)
+            print('stdout-' + str(cell_ref))
+            print(proc.stdout)
+            print('stderr-' + str(cell_ref))
+            print(proc.stderr)
+            os.rename(cell_ref[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
+            os.rename(cell_ref[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
+            os.remove(cell_ref[:-3] + '.mutations.txt')
+            os.remove(cell_ref[:-3] + '.mutations.vcf')
+
+            ## Samples reads each chrom at a time
             genome_len = sum([v for i,v in chrom_lens.items()])
             exp_reads = (genome_len*coverage) / (2*read_len)
             init = False
             for chrom in chrom_names:
                 read_prop = chrom_lens[chrom] / genome_len
                 readcount = poisson.rvs(exp_reads*read_prop)
-
                 if readcount > 0:
                     chrom_fa_path = cell_ref[:-3] + '_' + chrom + '.fa'
                     with open(chrom_fa_path, 'w+') as f:
                         proc = subprocess.run(['samtools', 'faidx', cell_ref, chrom], stdout=f)
 
                     seed = np.random.randint(1, 10000000)
-                    print(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), '-e', str(seq_error), '-E', str(seq_error), chrom_fa_path, chrom_fa_path[:-3]])
+                    #print(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), '-e', str(seq_error), '-E', str(seq_error), chrom_fa_path, chrom_fa_path[:-3]])
                     proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), chrom_fa_path, chrom_fa_path[:-3]], capture_output=True, text=True)
 
                     if not init:
@@ -152,47 +169,76 @@ def gen_reads_cell(cell, ref1, ref2, num_regions, chrom_names, region_length, un
                     os.remove(chrom_fa_path[:-3] + '.mutations.txt')
                     os.remove(chrom_fa_path[:-3] + '.mutations.vcf')
                 os.remove(chrom_fa_path)
-        else:
+            
+            ## Samples reads per window
+            genome_len = sum([v for i,v in chrom_lens.items()])
+            exp_reads = (genome_len*coverage) / (2*read_len)
             init = False
             for chrom in chrom_names:
-                if chrom_lens[chrom] > 0:
-                    num_windows = round(chrom_lens[chrom] / window_size)
+                num_windows = round(chrom_lens[chrom] / window_size)
+                for w in range(num_windows):
+                    start = w * window_size + 1
+                    if w == num_windows - 1:
+                        end = chrom_lens[chrom]
+                    else:
+                        end = (w+1) * window_size
+                    read_prop = (end - start) / genome_len
+                    readcount = int(exp_reads*read_prop)
+
+                    region_fa_path = cell_ref[:-3] + '_region' + str(start) + '.fa'
+                    with open(region_fa_path, 'w+') as f:
+                        call = subprocess.run(['samtools', 'faidx', cell_ref, chrom + ':' + str(start) + '-' + str(end)], stdout=f)
+                    
+                    for record in SeqIO.parse(region_fa_path, 'fasta'):
+                        total_N = record.seq.count('N')
+                    total_bp = end - start + 1
+                    N_ratio = total_N / total_bp
+                    readcount = round(readcounts[w] * (1-N_ratio))
+        #else:
+        '''
+        init = False
+        for chrom in chrom_names:
+            if chrom_lens[chrom] > 0:
+                num_windows = round(chrom_lens[chrom] / window_size)
+                if not uniform_coverage:
                     readcounts = draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_len)
-                    for w in range(num_windows):
-                        start = w * window_size + 1
-                        if w == num_windows - 1:
-                            end = chrom_lens[chrom]
-                        else:
-                            end = (w+1) * window_size
-                        
-                        region_fa_path = cell_ref[:-3] + '_region' + str(start) + '.fa'
-                        with open(region_fa_path, 'w+') as f:
-                            call = subprocess.run(['samtools', 'faidx', cell_ref, chrom + ':' + str(start) + '-' + str(end)], stdout=f)
-                        
-                        for record in SeqIO.parse(region_fa_path, 'fasta'):
-                            total_N = record.seq.count('N')
-                        total_bp = end - start + 1
-                        N_ratio = total_N / total_bp
+                for w in range(num_windows):
+                    start = w * window_size + 1
+                    if w == num_windows - 1:
+                        end = chrom_lens[chrom]
+                    else:
+                        end = (w+1) * window_size
+                    
+                    region_fa_path = cell_ref[:-3] + chrom + '-' + str(start) + '.fa'
+                    with open(region_fa_path, 'w+') as f:
+                        call = subprocess.run(['samtools', 'faidx', cell_ref, chrom + ':' + str(start) + '-' + str(end)], stdout=f)
+                    
+                    for record in SeqIO.parse(region_fa_path, 'fasta'):
+                        total_N = record.seq.count('N')
+                    total_bp = end - start + 1
+                    N_ratio = total_N / total_bp
+                    if uniform_coverage:
+                        readcount = round(poisson.rvs((total_bp*coverage) / (2*read_len)) * (1-N_ratio))
+                    else:
                         readcount = round(readcounts[w] * (1-N_ratio))
 
-                        if readcount > 0:
-                            seed = np.random.randint(1, 10000000)
-                            proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), '-e', str(seq_error), '-E', str(seq_error), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
-                        
-                            if not init:
-                                os.rename(region_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
-                                os.rename(region_fa_path[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
-                                init = True
-                            else:
-                                with open(cell_ref[:-3] + '.read1.fastq.gz', 'a') as f1, open(cell_ref[:-3] + '.read2.fastq.gz', 'a') as f2:
-                                    call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read1.fastq.gz'], stdout=f1)
-                                    call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read2.fastq.gz'], stdout=f2)
-                                os.remove(region_fa_path[:-3] + '.bwa.read1.fastq.gz')
-                                os.remove(region_fa_path[:-3] + '.bwa.read2.fastq.gz')
-                            os.remove(region_fa_path[:-3] + '.mutations.txt')
-                            os.remove(region_fa_path[:-3] + '.mutations.vcf')
-                        os.remove(region_fa_path)
-                        #os.remove(region_fa_path + '.fai')
+                    if readcount > 0:
+                        seed = np.random.randint(1, 10000000)
+                        proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), '-e', str(seq_error), '-E', str(seq_error), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
+                        if not init:
+                            os.rename(region_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
+                            os.rename(region_fa_path[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
+                            init = True
+                        else:
+                            with open(cell_ref[:-3] + '.read1.fastq.gz', 'a') as f1, open(cell_ref[:-3] + '.read2.fastq.gz', 'a') as f2:
+                                call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read1.fastq.gz'], stdout=f1)
+                                call = subprocess.run(['cat', region_fa_path[:-3] + '.bwa.read2.fastq.gz'], stdout=f2)
+                            os.remove(region_fa_path[:-3] + '.bwa.read1.fastq.gz')
+                            os.remove(region_fa_path[:-3] + '.bwa.read2.fastq.gz')
+                        os.remove(region_fa_path[:-3] + '.mutations.txt')
+                        os.remove(region_fa_path[:-3] + '.mutations.vcf')
+                    os.remove(region_fa_path)
+                    #os.remove(region_fa_path + '.fai')
         os.remove(cell_ref)
         os.remove(cell_ref + '.fai')
     with open(prefix + '.read1.fastq.gz', 'w+') as f1, open(prefix + '.read2.fastq.gz', 'w+') as f2:
