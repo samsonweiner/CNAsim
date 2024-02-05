@@ -1,6 +1,7 @@
 import os
 import subprocess
 import itertools
+from itertools import repeat
 import multiprocessing
 from pyfaidx import Fasta
 from Bio import SeqIO
@@ -115,90 +116,18 @@ def draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_l
     readcounts = [poisson.rvs(avg_read*x) for x in cov_scales]
     return readcounts
 
-
 # Generate reads across the genome for a given cell
-def gen_reads_cell(cell, ref1, ref2, num_regions, chrom_names, region_length, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, seq_error, out_path):
-    print('Generating reads for:', cell.name)
+def gen_reads_cell(cell, chrom_names, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, seq_error, out_path):
+    #print('Generating reads for:', cell.name)
     prefix = os.path.join(out_path, cell.name)
-    for allele, cur_ref in enumerate([ref1, ref2]):
-        cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', cur_ref, chrom_names, num_regions, region_length, allele, prefix)
-        '''
-        #if uniform_coverage:
-            ## Samples reads whole genome at a time
-            genome_len = sum([v for i,v in chrom_lens.items()])
-            exp_reads = (genome_len*coverage) / (2*read_len)
-
-            readcount = poisson.rvs(exp_reads)
-            seed = np.random.randint(1, 10000000)
-            proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), cell_ref, cell_ref[:-3]], capture_output=True, text=True)
-            print('stdout-' + str(cell_ref))
-            print(proc.stdout)
-            print('stderr-' + str(cell_ref))
-            print(proc.stderr)
-            os.rename(cell_ref[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
-            os.rename(cell_ref[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
-            os.remove(cell_ref[:-3] + '.mutations.txt')
-            os.remove(cell_ref[:-3] + '.mutations.vcf')
-
-            ## Samples reads each chrom at a time
-            genome_len = sum([v for i,v in chrom_lens.items()])
-            exp_reads = (genome_len*coverage) / (2*read_len)
-            init = False
-            for chrom in chrom_names:
-                read_prop = chrom_lens[chrom] / genome_len
-                readcount = poisson.rvs(exp_reads*read_prop)
-                if readcount > 0:
-                    chrom_fa_path = cell_ref[:-3] + '_' + chrom + '.fa'
-                    with open(chrom_fa_path, 'w+') as f:
-                        proc = subprocess.run(['samtools', 'faidx', cell_ref, chrom], stdout=f)
-
-                    seed = np.random.randint(1, 10000000)
-                    #print(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), '-e', str(seq_error), '-E', str(seq_error), chrom_fa_path, chrom_fa_path[:-3]])
-                    proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), chrom_fa_path, chrom_fa_path[:-3]], capture_output=True, text=True)
-
-                    if not init:
-                        os.rename(chrom_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
-                        os.rename(chrom_fa_path[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
-                        init = True
-                    else:
-                        with open(cell_ref[:-3] + '.read1.fastq.gz', 'a') as f1, open(cell_ref[:-3] + '.read2.fastq.gz', 'a') as f2:
-                            call = subprocess.run(['cat', chrom_fa_path[:-3] + '.bwa.read1.fastq.gz'], stdout=f1)
-                            call = subprocess.run(['cat', chrom_fa_path[:-3] + '.bwa.read2.fastq.gz'], stdout=f2)
-                        os.remove(chrom_fa_path[:-3] + '.bwa.read1.fastq.gz')
-                        os.remove(chrom_fa_path[:-3] + '.bwa.read2.fastq.gz')
-                    os.remove(chrom_fa_path[:-3] + '.mutations.txt')
-                    os.remove(chrom_fa_path[:-3] + '.mutations.vcf')
-                os.remove(chrom_fa_path)
-            
-            ## Samples reads per window
-            genome_len = sum([v for i,v in chrom_lens.items()])
-            exp_reads = (genome_len*coverage) / (2*read_len)
-            init = False
-            for chrom in chrom_names:
-                num_windows = round(chrom_lens[chrom] / window_size)
-                for w in range(num_windows):
-                    start = w * window_size + 1
-                    if w == num_windows - 1:
-                        end = chrom_lens[chrom]
-                    else:
-                        end = (w+1) * window_size
-                    read_prop = (end - start) / genome_len
-                    readcount = int(exp_reads*read_prop)
-
-                    region_fa_path = cell_ref[:-3] + '_region' + str(start) + '.fa'
-                    with open(region_fa_path, 'w+') as f:
-                        call = subprocess.run(['samtools', 'faidx', cell_ref, chrom + ':' + str(start) + '-' + str(end)], stdout=f)
-                    
-                    for record in SeqIO.parse(region_fa_path, 'fasta'):
-                        total_N = record.seq.count('N')
-                    total_bp = end - start + 1
-                    N_ratio = total_N / total_bp
-                    readcount = round(readcounts[w] * (1-N_ratio))
-        #else:
-        '''
+    cell_ref1 = prefix + '_allele0.fa'
+    cell_ref2 = prefix + '_allele1.fa'
+    counts = []
+    for allele, cell_ref in enumerate([cell_ref1, cell_ref2]):
         init = False
+        chrom_lens = read_fasta(cell_ref, chrom_lens_only = True)
         for chrom in chrom_names:
-            if chrom_lens[chrom] > 0:
+            if chrom in chrom_lens:
                 num_windows = round(chrom_lens[chrom] / window_size)
                 if not uniform_coverage:
                     readcounts = draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_len)
@@ -222,9 +151,11 @@ def gen_reads_cell(cell, ref1, ref2, num_regions, chrom_names, region_length, un
                     else:
                         readcount = round(readcounts[w] * (1-N_ratio))
 
+                    counts.append((allele, chrom, start, end, readcount))
+
                     if readcount > 0:
-                        seed = np.random.randint(1, 10000000)
-                        proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-z', str(seed), '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), '-e', str(seq_error), '-E', str(seq_error), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
+                        #seed = np.random.randint(1, 10000000)
+                        proc = subprocess.run(['dwgsim', '-H', '-o', '1', '-N', str(readcount), '-1', str(read_len), '-2', str(read_len), '-e', str(seq_error), '-E', str(seq_error), region_fa_path, region_fa_path[:-3]], capture_output=True, text=True)
                         if not init:
                             os.rename(region_fa_path[:-3] + '.bwa.read1.fastq.gz', cell_ref[:-3] + '.read1.fastq.gz')
                             os.rename(region_fa_path[:-3] + '.bwa.read2.fastq.gz', cell_ref[:-3] + '.read2.fastq.gz')
@@ -250,23 +181,27 @@ def gen_reads_cell(cell, ref1, ref2, num_regions, chrom_names, region_length, un
     os.remove(prefix + '_allele1.read2.fastq.gz')
     os.remove(prefix + '.pkl')
 
+    with open(os.path.join(out_path, cell.name + '.readcounts.tsv'), 'w+') as f:
+        for c in counts:
+            f.write(f'{c[0]}\t{c[1]}\t{c[2]}\t{c[3]}\t{c[4]}\n')
+
 # Generate reads for all cells
 def gen_reads(ref1, ref2, num_regions, chrom_names, tree, uniform_coverage, x0, y0, region_length, interval, window_size, coverage, read_len, seq_error, out_path, num_processors):
-    global gen_reads_cell_helper
-    # Helper function for parallel processing
-    def gen_reads_cell_helper(cell):
-        gen_reads_cell(cell, ref1, ref2, num_regions, chrom_names, region_length, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, seq_error, out_path)
+    leaves = list(tree.iter_leaves())
 
     [Aa, Bb] = get_alpha_beta(x0, y0)
     if num_processors == 1:
-        for cell in tree.iter_leaves():
+        for cell in leaves:
             gen_reads_cell(cell, ref1, ref2, num_regions, chrom_names, region_length, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, seq_error, out_path)
     else:
-        with multiprocessing.Pool(processes=num_processors, initializer=init_pool_processes) as pool:
-            pool.map(gen_reads_cell_helper, tree.iter_leaves())
-        #pool = multiprocessing.Pool(processes=num_processors)
-        #for chunk in iter_by_chunk(tree.iter_leaves(), num_processors):
-        #    cells = list(chunk)
-        #    while None in cells:
-        #        cells.remove(None)
-        #    pool.map(gen_reads_cell_helper, cells)
+        pool = multiprocessing.Pool(processes=num_processors)
+        for chunk in iter_by_chunk(tree.iter_leaves(), num_processors):
+            cells = list(chunk)
+            while None in cells:
+                cells.remove(None)
+            for cell in cells:
+                prefix = os.path.join(out_path, cell.name)
+                for allele, cur_ref in enumerate([ref1, ref2]):
+                    cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', cur_ref, chrom_names, num_regions, region_length, allele, prefix)
+            with multiprocessing.Pool(processes=num_processors) as pool:
+                pool.starmap(gen_reads_cell, zip(cells, repeat(chrom_names), repeat(uniform_coverage), repeat(window_size), repeat(interval), repeat(Aa), repeat(Bb), repeat(coverage), repeat(read_len), repeat(seq_error), repeat(out_path)))

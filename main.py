@@ -20,11 +20,11 @@ import os
 import time
 
 from tree import *
-from sim_genomes import init_diploid_genome, evolve_tree
+from sim_genomes import init_diploid_genome, evolve_tree, prepare_ancestral_profiles
 from sequence import read_fasta
 from reads import gen_reads
 from noise import add_noise_mixed
-from format_profiles import save_CN_profiles
+from format_profiles import save_CN_profiles_leaves, save_CN_profiles_ancestors
 from utilities import *
 
 
@@ -104,7 +104,7 @@ def main(args):
 
     ## Create tree structure
     print('Preparing ground truth tree...')
-    founder_events = args['placement_param'] * args['founder_event_mult']
+    founder_events = int(args['placement_param'] * args['founder_event_mult'])
     tree = make_tumor_tree(args['tree_type'], args['num_cells'], args['normal_fraction'], args['pseudonormal_fraction'], founder_events, args['out_path'], args['growth_rate'], args['tree_path'], args['num_sweep'], args['selection_strength'])
     clone_founders = []
     if args['num_clones'] > 0:
@@ -177,6 +177,7 @@ def main(args):
         bins = None
 
     evolve_tree(tree.root, args, chrom_names, num_regions, bins=bins)
+    prepare_ancestral_profiles(tree, args, chrom_names, num_regions, bins=bins)
 
     ## Generate data
     print('Generating single-cell data...')
@@ -186,7 +187,8 @@ def main(args):
             if args['output_clean_CNP']:
                 save_CN_profiles(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
             add_noise_mixed(tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
-        save_CN_profiles(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'profiles.tsv'))
+        save_CN_profiles_leaves(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'profiles.tsv'))
+        save_CN_profiles_ancestors(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'ancestral_profiles.tsv'))
     
     if args['mode'] == 1 or args['mode'] == 2:
         gen_reads(ref1, ref2, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['region_length'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['seq_error'], args['out_path'], args['processors'])
@@ -200,7 +202,7 @@ def main(args):
     if not args['disable_info']:
         if (args['num_clones'] > 0 or args['chrom_rate_super_clone']) and args['chrom_level_event']:
             record_clone_events(tree, os.path.join(args['out_path'], 'clone_events.tsv'), args['chrom_rate_super_clone'], clone_founders)
-        record_events(tree, os.path.join(args['out_path'], 'focal_events.tsv'))
+        record_events(tree, args['region_length'], os.path.join(args['out_path'], 'focal_events.tsv'))
 
 if __name__ == '__main__':
     args = parse_args()

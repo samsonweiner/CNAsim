@@ -240,7 +240,7 @@ def mutate_genome(node, args, chrom_names):
     for i in range(num_events):
         gen_focal_event(node, chrom_names, args['cn_length_mean']/args['region_length'], max(round(args['min_cn_length']/args['region_length']), 1), args['cn_event_rate'], args['cn_copy_param'])
 
-def format_profile(node, chrom_names, num_regions, bins):
+def genome_to_profile(node, chrom_names, num_regions, bins):
     # Collapsing genome in the form of a counter
     for chrom in chrom_names:
         for allele in [0, 1]:
@@ -264,18 +264,31 @@ def evolve_tree(node, args, chrom_names, num_regions, bins=None):
     
     if not node.cell_type == 'normal':
         mutate_genome(node, args, chrom_names)
+    
+    if args['mode'] == 1 or args['mode'] == 2:
+        with open(os.path.join(args['out_path'], node.name + '.pkl'), 'wb') as f:
+            pickle.dump(node.genome, f)
 
-    if node.is_leaf():
-        if args['mode'] == 1 or args['mode'] == 2:
+    if (args['mode'] == 0 or args['mode'] == 2) and bins != None:
+        if node.is_leaf():
+            genome_to_profile(node, chrom_names, num_regions, bins)
+        else:
             with open(os.path.join(args['out_path'], node.name + '.pkl'), 'wb') as f:
                 pickle.dump(node.genome, f)
-        if (args['mode'] == 0 or args['mode'] == 2) and bins != None:
-            format_profile(node, chrom_names, num_regions, bins)
-
+            
     for child in node.children:
         evolve_tree(child, args, chrom_names, num_regions, bins=bins)
 
     del node.genome
+
+def prepare_ancestral_profiles(tree, args, chrom_names, num_regions, bins=None):
+    for node in tree.iter_preorder():
+        if not node.is_leaf():
+            with open(os.path.join(args['out_path'], node.name + '.pkl'), 'rb') as f:
+                node.genome = pickle.load(f)
+            genome_to_profile(node, chrom_names, num_regions, bins)
+            del node.genome
+            os.remove(os.path.join(args['out_path'], node.name + '.pkl'))
 
 
 

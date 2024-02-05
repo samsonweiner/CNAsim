@@ -4,12 +4,15 @@ import subprocess
 import os
 import pickle
 
-def read_fasta(input_fasta):
-    ref = Fasta(input_fasta)
+def read_fasta(input_fasta, chrom_lens_only = False):
+    ref = Fasta(input_fasta, one_based_attributes=False)
     chrom_lens = {}
     for chrom in ref.keys():
         chrom_lens[chrom] = len(ref[chrom])
-    return ref, chrom_lens
+    if chrom_lens_only:
+        return chrom_lens
+    else:
+        return ref, chrom_lens
 
 def make_alt_ref(ref):
     pass

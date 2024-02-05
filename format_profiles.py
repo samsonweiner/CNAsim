@@ -54,7 +54,7 @@ def format_CN_profiles(tree, normal_diploid_genome, num_chroms, region_length, b
     
     return CN_profiles, bin_coords
 
-def save_CN_profiles(tree, chrom_names, bins, region_length, filepath):
+def save_CN_profiles_leaves(tree, chrom_names, bins, region_length, filepath):
     f = open(filepath, 'w+')
     headers = ['CELL', 'chrom', 'start', 'end', 'CN states']
     f.write('\t'.join(headers) + '\n')
@@ -71,5 +71,22 @@ def save_CN_profiles(tree, chrom_names, bins, region_length, filepath):
                 line = [leaf.name, chrom, bin_start, bin_end, CN_state]
                 f.write('\t'.join(line) + '\n')
     f.close()
-                    
+
+def save_CN_profiles_ancestors(tree, chrom_names, bins, region_length, filepath):
+    f = open(filepath, 'w+')
+    headers = ['CELL', 'chrom', 'start', 'end', 'CN states']
+    f.write('\t'.join(headers) + '\n')
+
+    ancestors = [node for node in tree.iter_preorder() if not node.is_leaf()]
+
+    # Writes to file in order of chroms, bins, cell
+    for chrom in chrom_names:
+        num_bins = len(bins[chrom]) - 1
+        for i in range(num_bins):
+            bin_start, bin_end = str(bins[chrom][i]*region_length), str(bins[chrom][i+1]*region_length)
+            for ancestor in ancestors:
+                CN_state = str(ancestor.profile[chrom][0][i]) + ',' + str(ancestor.profile[chrom][1][i])
+                line = [ancestor.name, chrom, bin_start, bin_end, CN_state]
+                f.write('\t'.join(line) + '\n')
+    f.close()
             

@@ -144,14 +144,14 @@ def record_clone_events(tree, out_path, super_clone_rate, clone_founders):
                 f.write('\t'.join([str(x) for x in [c.name, cloneids[c], e.chrom, e.allele, scaledict[e.category][e.arm], eventdict[e.event]]]) + '\n')
     f.close()
 
-def record_events(tree, out_path):
+def record_events(tree, region_length, out_path):
     f = open(out_path, 'w+')
     eventdict = {0: 'del', 1: 'gain'}
     f.write('\t'.join(['cellname', 'chrom', 'allele', 'start', 'length', 'event', 'copies']) + '\n')
     for n in tree.iter_descendants():
         for e in n.events:
             if e.category == 0:
-                f.write('\t'.join([str(x) for x in [n.name, e.chrom, e.allele, e.start, e.length, eventdict[e.event], e.copies]]) + '\n')
+                f.write('\t'.join([str(x) for x in [n.name, e.chrom, e.allele, e.start*region_length + 1, e.length*region_length, eventdict[e.event], e.copies]]) + '\n')
     f.close()
 
 def get_size(obj, seen=None):
