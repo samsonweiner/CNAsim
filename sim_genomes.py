@@ -7,7 +7,7 @@ import pickle
 
 # Categories --> 0: focal, 1: whole-chromosomal, 2: chromosome-arm
 class CNV():
-    def __init__(self, cell = None, category=None, chrom=None, allele=None, homolog=None, arm=None, start=None, length=None, event=None, copies=None):
+    def __init__(self, cell = None, category=None, chrom=None, allele=None, homolog=None, arm=None, start=None, length=None, event=None, copies=None, ref_idx=None):
         self.cell = cell
         self.category = category
         self.chrom = chrom
@@ -18,6 +18,7 @@ class CNV():
         self.copies = copies
         self.homolog = homolog
         self.arm = arm
+        self.ref_idx = ref_idx
 
 def get_chrom_proportions(sequence):
     combined_chrom_len = dict(zip(sequence.keys(), map(lambda x: len(sequence[x][0]) + len(sequence[x][1]), sequence.keys())))
@@ -169,6 +170,7 @@ def gen_focal_event(cell, chrom_names, length_mean, min_length, event_rate, copy
 
     #get starting location
     start_idx = np.random.randint(num_regions - CN_size + 1)
+    ref_idx = cell.genome[CN_chrom][CN_allele][CN_homolog][start_idx]
     end_idx = start_idx + CN_size
     
     update_arm = False
@@ -195,7 +197,7 @@ def gen_focal_event(cell, chrom_names, length_mean, min_length, event_rate, copy
             if cell.genome[CN_chrom][CN_allele][CN_homolog][-1] == 'X':
                 cell.genome[CN_chrom][CN_allele][CN_homolog].pop(-1)
 
-    cell.events.append(CNV(cell=cell, category=0, chrom=CN_chrom, allele=CN_allele, start=start_idx, length=CN_size, event=CN_type, copies=CN_copies))
+    cell.events.append(CNV(cell=cell, category=0, chrom=CN_chrom, allele=CN_allele, start=start_idx, length=CN_size, event=CN_type, copies=CN_copies, ref_idx=ref_idx))
 
 def mutate_genome(node, args, chrom_names):
     # Add WGD to founder node, if necessary
