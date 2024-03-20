@@ -60,17 +60,18 @@ def parse_args():
     parser.add_argument('-i1', '--chrom-rate-super-clone', type=float, default=1, help='Parameter in poisson for number of chromosome-level events along the edges out of the founder cell.')
     parser.add_argument('-i2', '--chrom-rate-clone', type=float, default=1, help='Parameter in poisson for number of chrom-level events for clonal nodes.')
     parser.add_argument('-u', '--chrom-event-type', type=float, default=0.5, help='Probability that a chromosomal event is a duplication.')
-    parser.add_argument('-N', '--num-chromosomes', type=int, default=22, help='Number of chromosomes.')
+    parser.add_argument('-N', '--num-chromosomes', type=int, default=22, help='Number of chromosomes if run in mode 0.')
     parser.add_argument('-L', '--chrom-length', type=int, default=100000000, help='Length of chromosomes in bp if not using hg38 static.')
     parser.add_argument('-A', '--chrom-arm-ratio', type=float, default=0.5, help='If not using hg38 static, ratio of length within the p-arm.')
     parser.add_argument('-B', '--bin-length', type=int, default=1000000, help='Resolution of copy number profiles in bp.')
     parser.add_argument('-E1', '--error-rate-1', type=float, default=0, help='Error rate for the boundary model.')
     parser.add_argument('-E2', '--error-rate-2', type=float, default=0, help='Error rate for the jitter model.')
-    parser.add_argument('-O', '--output-clean-CNP', action='store_true', help='Output the clean CNPs in addition to the noisy ones.')
-    parser.add_argument('-U', '--use-hg38-static', action='store_true', help='Use hg38 chromosome information.')
+    #parser.add_argument('-O', '--output-clean-CNP', action='store_true', help='Output the clean CNPs in addition to the noisy ones.')
+    parser.add_argument('-U', '--use-hg38-static', action='store_true', help='Use hg38 chromosome information. Excludes sex chromosomes chrX and chrY.')
     #parser.add_argument('-A', '--include-autosomes', action='store_true', help='Include autosomes in genome. Must either use hg38 static with number of chromosomes > 22, or pass a reference genome with autosomes.')
     parser.add_argument('-r1', '--reference', type=str, default=None, help='Path to input reference genome as the primary haplotype in fasta format. Will be duplicated as both haplotypes if an alternate is not provided.')
     parser.add_argument('-r2', '--alt-reference', type=str, default=None, help='Path to an alternate reference genome to be used as a secondary haplotype, also in fasta format.')
+    #parser.add_argument('-D', '--chrom-names-path', type=str, default=None, help='Path to file containing chromosomes names to use in reference file(s). By default, will use all chromosomes present in reference except chrX and chrY.')
     parser.add_argument('-M', '--use-uniform-coverage', action='store_true', help='Use uniform coverage across the genome.')
     parser.add_argument('-X', '--lorenz-x', type=float, default=0.5, help='x-coordinate of point on lorenz curve if using non-uniform coverage.')
     parser.add_argument('-Y', '--lorenz-y', type=float, default=0.4, help='y-coordinate of point on lorenz curve if using non-uniform coverage.')
@@ -125,15 +126,28 @@ def main(args):
         if not os.path.isfile(args['reference']):
             raise InputError("Cannot access input " + str(args['reference']))
         ref1, chrom_lens = read_fasta(args['reference'])
-        chrom_lens.pop('chrX', None)
-        chrom_lens.pop('chrY', None)
+        if args['use_hg38_static']:
+            all_chroms = list(chrom_lens.keys())
+            chrom_names = [f'chr{i}' for i in range(1, 23)]
+            for c in all_chroms:
+                if c not in chrom_names:
+                    chrom_lens.pop(c, None)
         chrom_names = list(chrom_lens.keys())
+        print(f'Number of chromosomes in reference: {len(chrom_names)}')
+        if not check_chrom_lengths(chrom_lens, args['window_size']):
+            if args['mode'] == 1 or args['mode'] == 2:
+                raise ChromSizeError()
+
         if args['alt_reference']:
             if not os.path.isfile(args['alt_reference']):
                 raise InputError("Cannot access input " + str(args['alt_reference']))
             ref2, alt_chrom_lens = read_fasta(args['alt_reference'])
-            alt_chrom_lens.pop('chrX', None)
-            alt_chrom_lens.pop('chrY', None)
+            if args['use_hg38_static']:
+                all_chroms = list(chrom_lens.keys())
+                alt_chrom_names = [f'chr{i}' for i in range(1, 23)]
+                for c in all_chroms:
+                    if c not in alt_chrom_names:
+                        alt_chrom_lens.pop(c, None)
             if set(chrom_names) != set(alt_chrom_lens.keys()):
                 raise ChromNameError()
         else:
@@ -184,8 +198,7 @@ def main(args):
     if args['mode'] == 0 or args['mode'] == 2:
         print('Formating and saving profiles')
         if args['error_rate_1'] != 0 or args['error_rate_2'] != 0:
-            if args['output_clean_CNP']:
-                save_CN_profiles(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
+            save_CN_profiles_leaves(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
             add_noise_mixed(tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
         save_CN_profiles_leaves(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'profiles.tsv'))
         save_CN_profiles_ancestors(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'ancestral_profiles.tsv'))

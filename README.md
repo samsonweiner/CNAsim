@@ -35,7 +35,7 @@ More information can be found in our paper, located here: [link to paper].
 
 # Installation
 
-CNAsim is written in python and runs reliably on versions 3.7 - 3.10. For Mac and Linux users, a standalone executable of CNAsim is available and can be downloaded from [here](https://compbio.engr.uconn.edu/software/CNAsim/). 
+CNAsim is written in python and runs reliably on versions 3.7 - 3.10. For Mac and Linux users, a standalone executable of CNAsim is available and can be downloaded from [here](https://compbio.engr.uconn.edu/software/CNAsim/) (OUTDATED). 
 
 Otherwise, users with a python interpreter can use CNAsim by downloading the source code and setting up an environment with all the necessary packages. The remainder of this section provides instructions on how to install CNAsim this way.
 
@@ -97,20 +97,25 @@ CNAsim roughly follows three stages: simulate a cell lineage tree and subclonal 
 To run CNAsim, run the executable with the desired parameters in the command line. Users must specify the simulator mode (-m, --mode) of which there are three choices. Pass **0** to generate copy number profiles (CNP mode), **1** to generate sequencing data (seq mode), or **2** to generate both.
 
 ```
+python main.py -m mode [options]
+```
+
+Users running CNAsim using an executable should instead run:
+
+```
 ./CNAsim -m mode [options]
-```
-
-Users running CNAsim through python should instead call the main.py file, but all other commands and parameters should be the same.
-
-```
-python3 main.py -m mode [options]
 ```
 
 Instead of inputing each parameter in the command line, you can modify the provided *parameters* file and toggle the *-F* option.
 ```
-./CNAsim -F
 python main.py -F
+./CNAsim -F
 ```
+
+### A note on the input reference
+If using CNAsim to generate sequence reads, please ensure that the provided reference genome(s) contain only the desired chromosomes (remove any small alternate/unorganized sequences that you do not want to be represented as chromosomes).
+
+For convenience, if using human reference genome hg38 with chromosomes named chr1, chr2, ect..., simply toggle the --use-hg38-static parameter to bypass having to filter the fasta file.
 
 ### I/O and Utilities
 
@@ -164,7 +169,7 @@ python main.py -F
 
    `-k, --region-length` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Region length in bp. CNA events occur in region-sized units. Essentually controls the resolution of the genome. Default: 1000 bp
 
-   `-U, --use-hg38-static` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use chromosome lengths and chromosome arm ratios derived from the hg38 reference genome. Default: False
+   `-U, --use-hg38-static` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Use chromosome lengths and chromosome arm ratios derived from the hg38 reference genome, excluding sex chromosomes. Default: False
 
    `-N, --num-chromosomes` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; A set number of chromosomes to represent the genome. Default: 22
 
@@ -213,8 +218,6 @@ python main.py -F
    `-E1, --error-rate-1` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The error rate used for adding noise at the boundaries of copy number segments. Default: 0
 
    `-E2, --error-rate-2` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; The error rate used for adding random jitter in the copy number profiles. Default: 0
-
-   `-O, --output-clean-CNP` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; If run in CNP mode with the error model, outputs the clean CNPs in addition to the noisy ones. Default: False
 
 * Commands for generating sequencing reads. For each observed cell, CNAsim builds a reference based on its evolved genome and makes system calls to *dwgsim* to generate the reads themselves. The average read depth (coverage) across the entire genome is given by -C, and is used to compute the expected read count of a given region. To use uniform coverage, toggle the -M parameter. In practice, this is an oversimplification of single-cell sequencing technologies, however doing so will reduce the time it takes to generate reads by roughly 1/4th. 
 

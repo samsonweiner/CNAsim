@@ -13,7 +13,12 @@ class ChromNameError(Exception):
 
 class ChromNumError(Exception):
     def __init__(self):
-        self.message = "Cannot have more than 23 chroms with the --use-hg38-static parameter toggled."
+        self.message = "Cannot have more than 22 chroms with the --use-hg38-static parameter toggled."
+        super().__init__(self.message)
+
+class ChromSizeError(Exception):
+    def __init__(self):
+        self.message = "Detected chromosomes in reference smaller than window size. Ensure the reference contains the desired chromosome sequences and remove alternate sequences if necessary."
         super().__init__(self.message)
 
 class ModeError(Exception):
@@ -96,6 +101,11 @@ def hg38_chrom_lengths_from_cytoband(include_allosomes=False, include_arms=False
     else:
         return chrom_lens
     
+def check_chrom_lengths(chrom_lens, window_size):
+    for c,l in chrom_lens.items():
+        if l < window_size:
+            return False
+    return True
 
 # Summary sim stats 
 def summary(tree, out_path, num_chroms, WGD, region_length):

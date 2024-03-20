@@ -47,7 +47,6 @@
 [1000000] Resolution of copy number profiles in bp. (bin-length)
 [0] Error rate for the boundary model. (error-rate-1)
 [0] Error rate for the jitter model. (error-rate-2)
-[False] Output the clean CNPs in addition to the noisy ones. (--output-clean-CNP)
 [True] Use hg38 chromosome information. (use_hg38_lengths)
 
 # Sequencing reads

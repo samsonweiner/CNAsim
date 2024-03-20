@@ -192,7 +192,10 @@ def gen_reads(ref1, ref2, num_regions, chrom_names, tree, uniform_coverage, x0, 
     [Aa, Bb] = get_alpha_beta(x0, y0)
     if num_processors == 1:
         for cell in leaves:
-            gen_reads_cell(cell, ref1, ref2, num_regions, chrom_names, region_length, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, seq_error, out_path)
+            prefix = os.path.join(out_path, cell.name)
+            for allele, cur_ref in enumerate([ref1, ref2]):
+                cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', cur_ref, chrom_names, num_regions, region_length, allele, prefix)
+            gen_reads_cell(cell, chrom_names, uniform_coverage, window_size, interval, Aa, Bb, coverage, read_len, seq_error, out_path)
     else:
         pool = multiprocessing.Pool(processes=num_processors)
         for chunk in iter_by_chunk(tree.iter_leaves(), num_processors):
