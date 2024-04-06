@@ -1,11 +1,17 @@
 # CNAsim
 
-CNAsim is a software package for improved simulation of single-cell copy number alteration (CNA) data from tumors. CNAsim can be used to generate copy number profiles with noise patterns that mimic those of single-cell CNA detection algorithms, and to generate DNA-seq data for sampled cells. It offers significantly improved scalability, a high degree of customizability, and improved biological realism of simulated data. CNAsim can be cited as follows:
+CNAsim is a software package for improved simulation of single-cell copy number alteration (CNA) data from tumors. CNAsim can be used to generate copy number profiles with noise patterns that mimic those of single-cell CNA detection algorithms, readcount data with ground truth CNPs, and DNA sequencing reads for sampled cells with ground truth CNPs. It offers significantly improved scalability, a high degree of customizability, and improved biological realism of simulated data.
 
+CNAsim can be cited as follows:
 
 <a href="https://doi.org/10.1093/bioinformatics/btad434">CNAsim: Improved simulation of single-cell copy number profiles and DNA-seq data from tumors</a><br>
 Samson Weiner and Mukul S. Bansal<br>
 Bioinformatics, Volume 39, Issue 7, July 2023, btad434.
+
+### New Features
+
+* Sequencing reads can be sampled from two distinct haploid reference genomes, enabling the analysis of allelic frequency. To make sure of this feature, run CNAsim in mode **2** and specify the paths to the reference sequences using the `-r1` and `-r2` parameters.
+* CNAsim can now be used to simulate readcounts directly without having to generate synthetic sequencing reads. This can be achieved by using mode **1**. Passing a reference genome is optional.
 
 <!--
 More information can be found in our paper, located here: [link to paper].
@@ -94,7 +100,7 @@ You may also wish to add this line to your *~/.bashrc* or */.bash_profile* confi
 
 CNAsim roughly follows three stages: simulate a cell lineage tree and subclonal structure, simulate genomes and evolution, and generate single-cell data. The following documentation details the relevant parameters organized according to these three stages.
 
-To run CNAsim, run the executable with the desired parameters in the command line. Users must specify the simulator mode (-m, --mode) of which there are three choices. Pass **0** to generate copy number profiles (CNP mode), **1** to generate sequencing data (seq mode), or **2** to generate both.
+To run CNAsim, run the executable with the desired parameters in the command line. Users must specify the simulator mode (-m, --mode) of which there are three choices. Pass **0** to generate copy number profiles only (CNP mode), **1** to generate readcounts and CNPs (count mode), or **2** to generate synthetic DNA sequencing reads and CNPs (seq mode).
 
 ```
 python main.py -m mode [options]
@@ -121,7 +127,7 @@ For convenience, if using human reference genome hg38 with chromosomes named chr
 
 * Commands for controlling the simulator mode and all inputs/outputs. The mode parameter -m is required and takes the integer values 0,1, or 2. All output files will be deposited in the directory located by the path given by -o. If the directory does not exist, one will be created. The remaining parameters are only circumstainstally required or entirely optional. If run in CNP mode using standard features, no inputs are required.
 
-   `-m, --mode` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Simulator mode for generating data. 0: CNP data, 1: seq data, 2: both. Required.
+   `-m, --mode` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Simulator mode for generating data. 0: CNP data, 1: count data, 2: seq data. Required.
 
    `-o, --out-path` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Path to output directory where data will be saved to. Will create one if no directory exists. Default: CNA_output/
 
@@ -261,10 +267,10 @@ python main.py -m 0 -n 50 -N 1
 python main.py -m 0 -n 100 -c 3 -v -U -B 500000 -E1 0.04 -E2 0.1
 ```
 
-## 3. Generating whole-genome sequencing reads of 100 tumor cells assuming read depth nonuniformity of MALBAC
+## 3. Generating whole-genome sequencing reads of 100 tumor cells assuming highly nonuniform coverage
 
 ```
-python main.py -m 1 -n 100 -r1 hg38.fa -U -C 25 -X 0.5 -Y 0.27 
+python main.py -m 2 -n 100 -r1 hg38.fa -U -C 25 -X 0.5 -Y 0.4 
 ```
 
 ## 4. Mimicing large-scale whole-genome 10x genomics breast cancer dataset with ultra-low coverage with synthetic reads and ground truth copy number profiles leveraging 8 cores.
@@ -274,7 +280,11 @@ python main.py -m 2 -n 10000 -n1 0.4 -n2 0.05 -c 7 -c2 100 -c3 50 -r1 path/to/hg
 ```
 It should be noted that even with very low coverage, the above command will take a substantial amount of time (estimated at ~100 hours). When generating sequencing data for a large number of cells, it is *strongly* recommended to make use of parallelization.
 
-## 
+## 5. Generate whole-genome read counts of 100 tumor cells directly without generating any reads
+
+```
+python main.py -m 1 -n 100 -U -C 0.1 -M -W 1000000 -B 5000000
+```
 
 # Using the error model
 

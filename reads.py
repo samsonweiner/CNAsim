@@ -1,6 +1,8 @@
 import os
 import subprocess
 import itertools
+from collections import Counter
+import pickle
 from itertools import repeat
 import multiprocessing
 from pyfaidx import Fasta
@@ -208,3 +210,70 @@ def gen_reads(ref1, ref2, num_regions, chrom_names, tree, uniform_coverage, x0, 
                     cell_ref, chrom_lens = build_cell_ref(prefix + '.pkl', cur_ref, chrom_names, num_regions, region_length, allele, prefix)
             with multiprocessing.Pool(processes=num_processors) as pool:
                 pool.starmap(gen_reads_cell, zip(cells, repeat(chrom_names), repeat(uniform_coverage), repeat(window_size), repeat(interval), repeat(Aa), repeat(Bb), repeat(coverage), repeat(read_len), repeat(seq_error), repeat(out_path)))
+
+def gen_readcounts(tree, chrom_names, bins, num_regions, region_length, uniform_coverage, x0, y0, interval, window_size, coverage, read_len, out_path):
+    regions_per_window = round(window_size / region_length)
+    [Aa, Bb] = get_alpha_beta(x0, y0)
+    leaves = list(tree.iter_leaves())
+    final_readcounts = {}
+
+    for cell in leaves:
+        prefix = os.path.join(out_path, cell.name)
+        with open(prefix + '.pkl', 'rb') as f:
+            genome = pickle.load(f)
+
+        full_readcounts = {chrom: [0 for i in range(num_regions[chrom])] for chrom in chrom_names}
+        for chrom in chrom_names:
+            for allele in [0, 1]:
+                if len(genome[chrom][allele]) > 0:
+                    for homolog in genome[chrom][allele]:
+                        while 'X' in homolog:
+                            homolog.remove('X')
+                        
+                        num_windows = int(np.ceil(len(homolog) / regions_per_window))
+                        if uniform_coverage:
+                            cur_readcounts = [round(poisson.rvs((window_size*coverage) / (2*read_len))) for i in range(num_windows)]
+                        else:
+                            cur_readcounts = [round(x) for x  in draw_readcounts(num_windows, window_size, interval, Aa, Bb, coverage, read_len)]
+
+                        windows = [list(w) for w in iter_by_chunk(homolog, regions_per_window)]
+                        while None in windows[-1]:
+                            windows[-1].remove(None)
+
+                        for i,window in enumerate(windows):
+                            rc = cur_readcounts[i]
+                            cur_window_len = len(window)
+                            if cur_window_len != regions_per_window:
+                                rc = round(rc * (cur_window_len/regions_per_window))
+                            
+                            counts = dict(Counter(window))
+                            for r,c in counts.items():
+                                r_ratio = c / cur_window_len
+                                full_readcounts[chrom][r] += (r_ratio * rc)
+        
+
+        binned_readcounts = {chrom: [] for chrom in chrom_names}
+        for chrom in chrom_names:
+            for i in range(len(bins[chrom])-1):
+                regions = list(range(bins[chrom][i], bins[chrom][i+1]))
+                binned_readcounts[chrom].append(round(sum([full_readcounts[chrom][j] for j in regions])))
+        final_readcounts[cell] = binned_readcounts
+        os.remove(prefix + '.pkl')
+
+    with open(os.path.join(out_path, 'readcounts.tsv'), 'w+') as f:
+        headers = ['CELL', 'chrom', 'start', 'end', 'readcount']
+        f.write('\t'.join(headers) + '\n')
+
+        # Writes to file in order of chroms, bins, cell
+        for chrom in chrom_names:
+            num_bins = len(bins[chrom]) - 1
+            for i in range(num_bins):
+                bin_start, bin_end = str(bins[chrom][i]*region_length), str(bins[chrom][i+1]*region_length)
+                for cell in leaves:
+                    line = [cell.name, chrom, bin_start, bin_end, str(final_readcounts[cell][chrom][i])]
+                    f.write('\t'.join(line) + '\n')
+
+
+
+
+    

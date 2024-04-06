@@ -22,7 +22,7 @@ import time
 from tree import *
 from sim_genomes import init_diploid_genome, evolve_tree, prepare_ancestral_profiles
 from sequence import read_fasta
-from reads import gen_reads
+from reads import gen_reads, gen_readcounts
 from noise import add_noise_mixed
 from format_profiles import save_CN_profiles_leaves, save_CN_profiles_ancestors
 from utilities import *
@@ -31,7 +31,7 @@ from utilities import *
 def parse_args():
     #Arguments
     parser = argparse.ArgumentParser()
-    parser.add_argument('-m', '--mode', type=int, default=None, help='Main simulator mode for generating data. 0: CNP data, 1: read data, 2: both')
+    parser.add_argument('-m', '--mode', type=int, default=None, help='Main simulator mode for generating data. 0: CNPs only, 1: readcounts & CNPs, 2: sequencing reads & CNPs')
     parser.add_argument('-o', '--out-path', type=str, default='CNAsim_output/', help='Path to output directory.')
     parser.add_argument('-t', '--tree-type', type=int, default=0, help='0: coalescence, 1: random, 2: from file (use -T to specify file path).')
     parser.add_argument('-T', '--tree-path', type=str, default=None, help='Path to input tree.')
@@ -135,7 +135,7 @@ def main(args):
         chrom_names = list(chrom_lens.keys())
         print(f'Number of chromosomes in reference: {len(chrom_names)}')
         if not check_chrom_lengths(chrom_lens, args['window_size']):
-            if args['mode'] == 1 or args['mode'] == 2:
+            if args['mode'] == 2:
                 raise ChromSizeError()
 
         if args['alt_reference']:
@@ -153,7 +153,7 @@ def main(args):
         else:
             ref2 = ref1
     else:
-        if args['mode'] == 1 or args['mode'] == 2:
+        if args['mode'] == 2:
             raise InputError("Cannot access input " + str(args['reference']))
         chrom_names = ['chr' + str(i+1) for i in range(args['num_chromosomes'])]
         chrom_lens = dict(zip(chrom_names, [args['chrom_length'] for i in range(args['num_chromosomes'])]))
@@ -178,32 +178,34 @@ def main(args):
 
     ## Evolve genomes along tree
     print('Generating genomes, events, and profiles...')
-    if args['mode'] == 0 or args['mode'] == 2:
-        regions_per_bin = np.floor(args['bin_length']/args['region_length'])
-        bins = {}
-        for chrom in chrom_names:
-            bins[chrom] = [k for k in range(num_regions[chrom]) if k % regions_per_bin == 0]
-            if (num_regions[chrom] - 1) - bins[chrom][-1] < regions_per_bin/2:
-                bins[chrom][-1] = num_regions[chrom]
-            else:
-                bins[chrom].append(num_regions[chrom])
-    else:
-        bins = None
+    #if args['mode'] == 0 or args['mode'] == 2:
+    regions_per_bin = np.floor(args['bin_length']/args['region_length'])
+    bins = {}
+    for chrom in chrom_names:
+        bins[chrom] = [k for k in range(num_regions[chrom]) if k % regions_per_bin == 0]
+        if (num_regions[chrom] - 1) - bins[chrom][-1] < regions_per_bin/2:
+            bins[chrom][-1] = num_regions[chrom]
+        else:
+            bins[chrom].append(num_regions[chrom])
 
     evolve_tree(tree.root, args, chrom_names, num_regions, bins=bins)
     prepare_ancestral_profiles(tree, args, chrom_names, num_regions, bins=bins)
 
     ## Generate data
-    print('Generating single-cell data...')
-    if args['mode'] == 0 or args['mode'] == 2:
-        print('Formating and saving profiles')
-        if args['error_rate_1'] != 0 or args['error_rate_2'] != 0:
-            save_CN_profiles_leaves(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
-            add_noise_mixed(tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
-        save_CN_profiles_leaves(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'profiles.tsv'))
-        save_CN_profiles_ancestors(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'ancestral_profiles.tsv'))
+    #if args['mode'] == 0 or args['mode'] == 2:
+    print('Formating and saving profiles')
+    if args['error_rate_1'] != 0 or args['error_rate_2'] != 0:
+        save_CN_profiles_leaves(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'clean_profiles.tsv'))
+        add_noise_mixed(tree, chrom_names, args['error_rate_1'], args['error_rate_2'])
+    save_CN_profiles_leaves(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'profiles.tsv'))
+    save_CN_profiles_ancestors(tree, chrom_names, bins, args['region_length'], os.path.join(args['out_path'], 'ancestral_profiles.tsv'))
+
+    if args['mode'] == 1:
+        print('Generating read counts...')
+        gen_readcounts(tree, chrom_names, bins, num_regions, args['region_length'], args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['out_path'])
     
-    if args['mode'] == 1 or args['mode'] == 2:
+    if args['mode'] == 2:
+        print('Generating synthetic sequencing reads...')
         gen_reads(ref1, ref2, num_regions, chrom_names, tree, args['use_uniform_coverage'], args['lorenz_x'], args['lorenz_y'], args['region_length'], args['interval'], args['window_size'], args['coverage'] / 2, args['read_length'], args['seq_error'], args['out_path'], args['processors'])
 
     ## Logging information

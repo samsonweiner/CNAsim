@@ -258,7 +258,7 @@ def genome_to_profile(node, chrom_names, num_regions, bins):
         for allele in [0, 1]:
             for i in range(len(bins[chrom])-1):
                 regions = list(range(bins[chrom][i], bins[chrom][i+1]))
-                node.profile[chrom][allele].append(round(sum([node.genome[chrom][allele][i] for i in regions]) / len(regions)))
+                node.profile[chrom][allele].append(round(sum([node.genome[chrom][allele][j] for j in regions]) / len(regions)))
 
 def evolve_tree(node, args, chrom_names, num_regions, bins=None):
     if not node.is_root():
@@ -271,12 +271,12 @@ def evolve_tree(node, args, chrom_names, num_regions, bins=None):
         with open(os.path.join(args['out_path'], node.name + '.pkl'), 'wb') as f:
             pickle.dump(node.genome, f)
 
-    if (args['mode'] == 0 or args['mode'] == 2) and bins != None:
-        if node.is_leaf():
-            genome_to_profile(node, chrom_names, num_regions, bins)
-        else:
-            with open(os.path.join(args['out_path'], node.name + '.pkl'), 'wb') as f:
-                pickle.dump(node.genome, f)
+    #if (args['mode'] == 0 or args['mode'] == 2) and bins != None:
+    if node.is_leaf():
+        genome_to_profile(node, chrom_names, num_regions, bins)
+    else:
+        with open(os.path.join(args['out_path'], node.name + '.pkl'), 'wb') as f:
+            pickle.dump(node.genome, f)
             
     for child in node.children:
         evolve_tree(child, args, chrom_names, num_regions, bins=bins)
