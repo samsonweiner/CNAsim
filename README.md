@@ -8,6 +8,8 @@ CNAsim can be cited as follows:
 Samson Weiner and Mukul S. Bansal<br>
 Bioinformatics, Volume 39, Issue 7, July 2023, btad434.
 
+Current Version: 1.3.1
+
 ### New Features
 
 * Sequencing reads can be sampled from two distinct haploid reference genomes, enabling the analysis of allelic frequency. To make sure of this feature, run CNAsim in mode **2** and specify the paths to the reference sequences using the `-r1` and `-r2` parameters.
