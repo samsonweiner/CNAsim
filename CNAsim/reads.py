@@ -13,7 +13,7 @@ from scipy.stats import beta, poisson
 from scipy.optimize import newton_krylov
 from scipy.optimize.nonlin import NoConvergence
 
-from sequence import *
+from .sequence import *
 
 def iter_by_chunk(iterable, chunksize):
     return itertools.zip_longest(*[iter(iterable)] * chunksize)

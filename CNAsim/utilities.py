@@ -41,10 +41,8 @@ def convert(val):
 
 def handle_args(arguments):
     if arguments.param_file:
-        file_path = os.path.realpath(__file__)
-        sim_dir_path, filename = os.path.split(file_path)
         args = {}
-        f = open(os.path.join(sim_dir_path, 'parameters'))
+        f = open(arguments.param_file)
         lines = f.readlines()
         f.close()
 

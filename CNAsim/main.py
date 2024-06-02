@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # Copyright (C) 2023 Samson Weiner (samson.weiner@uconn.edu) and
 # Mukul S. Bansal (mukul.bansal@uconn.edu).
 #
@@ -19,13 +21,13 @@ import argparse
 import os
 import time
 
-from tree import *
-from sim_genomes import init_diploid_genome, evolve_tree, prepare_ancestral_profiles
-from sequence import read_fasta
-from reads import gen_reads, gen_readcounts
-from noise import add_noise_mixed
-from format_profiles import save_CN_profiles_leaves, save_CN_profiles_ancestors
-from utilities import *
+from .tree import *
+from .sim_genomes import init_diploid_genome, evolve_tree, prepare_ancestral_profiles
+from .sequence import read_fasta
+from .reads import gen_reads, gen_readcounts
+from .noise import add_noise_mixed
+from .format_profiles import save_CN_profiles_leaves, save_CN_profiles_ancestors
+from .utilities import *
 
 
 def parse_args():
@@ -82,12 +84,14 @@ def parse_args():
     parser.add_argument('-S', '--seq-error', type=float, default=0.02, help='Per base error rate for generating sequence data.')
     parser.add_argument('-P', '--processors', type=int, default=1, help='Number of processes to use for generating reads in parallel.')
     parser.add_argument('-d', '--disable-info', action='store_true', help='Do not output simulation log, cell types, or ground truth events.')
-    parser.add_argument('-F', '--param-file', action='store_true', help='Use parameters from the parameter file instead of the command line.')
+    parser.add_argument('-F', '--param-file', type=str, default=None, help='Path to parameter file to specify parameters instead of the command line. Must conform to the sample format.')
     arguments = parser.parse_args()
 
     return handle_args(arguments)
 
-def main(args):
+def main():
+    args = parse_args()
+
     if args['mode'] not in [0, 1, 2]:
         raise ModeError
 
@@ -220,5 +224,4 @@ def main(args):
         record_events(tree, args['region_length'], os.path.join(args['out_path'], 'focal_events.tsv'))
 
 if __name__ == '__main__':
-    args = parse_args()
-    main(args)
+    main()

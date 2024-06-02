@@ -8,7 +8,7 @@ CNAsim can be cited as follows:
 Samson Weiner and Mukul S. Bansal<br>
 Bioinformatics, Volume 39, Issue 7, July 2023, btad434.
 
-Current Version: 1.3.1
+Current Version: 1.3.4
 
 ### New Features
 
@@ -21,37 +21,56 @@ More information can be found in our paper, located here: [link to paper].
 
 # Table of Contents
 
-[Installation](#Installation)
+- [Installation](#installation)
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [Python packages](#python-packages)
+   - [Automatic installation](#automatic-installation)
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [External packages](#external-packages)
+   - [Manual installation](#manual-installation)
 
-[Usage](#Usage)
+- [Usage](#Usage)
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [I/O and Utilities](#io-and-utilities)
+   - [I/O and Utilities](#io-and-utilities)
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [Stage 1: simulating cell lineage tree and tumor population](#stage-1)
+   - [Stage 1: simulating cell lineage tree and tumor population](#simulate-cell-lineage-tree-and-subclonal-structure)
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [Stage 2: simulating genomes and mutations](#stage-2)
+   - [Stage 2: simulating genomes and mutations](#simulate-genomes-and-evolution)
 
-&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; [Stage 3: generating single-cell data](#stage-3)
+   - [Stage 3: generating single-cell data](#generate-single-cell-data)
 
-[Examples](#Example-commands)
+- [Examples](#example-commands)
 
-[Using the error model](#Using-the-error-model)
+- [Using the error model](#using-the-error-model)
 
 # Installation
 
-CNAsim is written in python and runs reliably on versions 3.7 - 3.10. For Mac and Linux users, a standalone executable of CNAsim is available and can be downloaded from [here](https://compbio.engr.uconn.edu/software/CNAsim/) (OUTDATED). 
+## Automatic installation
 
-Otherwise, users with a python interpreter can use CNAsim by downloading the source code and setting up an environment with all the necessary packages. The remainder of this section provides instructions on how to install CNAsim this way.
+CNAsim is written in python and can be installed automatically using Conda. It is best practice to install CNAsim into a new environment as follows:
+```
+conda create -n CNAsim
+conda activate CNAsim
+
+conda install -c bioconda cnasim
+```
+
+Note that the environment must be activated before every session.
+
+## Manual installation
+
+Users with a python interpreter can install CNAsim manually by downloading the source code and setting up an environment with all the necessary packages. The remainder of this section provides instructions on how to install CNAsim this way.
 
 You can download the source code by cloning this repository:
 
 ```
 git clone https://github.com/samsonweiner/CNAsim.git
 ```
+
+First, cd into the CNAsim repository and run the setup script:
+```
+cd CNAsim
+python setup.py install
+``` 
+Now setup the environment.
 
 ### Python packages
 
@@ -105,19 +124,12 @@ CNAsim roughly follows three stages: simulate a cell lineage tree and subclonal 
 To run CNAsim, run the executable with the desired parameters in the command line. Users must specify the simulator mode (-m, --mode) of which there are three choices. Pass **0** to generate copy number profiles only (CNP mode), **1** to generate readcounts and CNPs (count mode), or **2** to generate synthetic DNA sequencing reads and CNPs (seq mode).
 
 ```
-python main.py -m mode [options]
-```
-
-Users running CNAsim using an executable should instead run:
-
-```
-./CNAsim -m mode [options]
+cnasim -m mode [options]
 ```
 
 Instead of inputing each parameter in the command line, you can modify the provided *parameters* file and toggle the *-F* option.
 ```
-python main.py -F
-./CNAsim -F
+cnasim -F
 ```
 
 ### A note on the input reference
@@ -145,7 +157,7 @@ For convenience, if using human reference genome hg38 with chromosomes named chr
 
    `-F, --param-file` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp; Parses the provided `parameters` file in the source directory for all simulation parameters. Default: False
 
-### Simulate a cell lineage tree and subclonal structure
+### Simulate cell lineage tree and subclonal structure
 
 * Commands for generating the cell lineage tree and subclonal populations. The user can specify any combination of tumor, normal, and pseudonormal cells using the -n, -n1, and -n2 parameters. The number of tumor cells will equal the value given by -n if both normal and pseudonormal fractions are set to 0. Otherwise, the number of tumor cells will be the remaining fraction. For example, if -n is set to 100, -n1 is set to 0.1, and -n2 is set to 0.05, there will be 85 tumor cells, 10 normal cells, and 5 pseudonormal cells. To generate the main tumor lineage, CNAsim simulates an exponentially growing population under neutral coalescence with growth rate given by the -g parameter. Selective sweeps can be introduced at random points during the tumor lifespan using the -s parameter. Once the cell-lineage tree is generated, ancestral nodes can be selected to represent diverging subclonal populations, the number of which is given by -c. The probability of selecting ancestral nodes are can either be proportional to the size of the induced subtree, or the node's branch length. If the former, users can further control clone sizes by defining a normal distribution (parameters -c2 and -c3) over the number of cells belonging to the clone. Otherwise, nodes are selected uniformly with respect to tree depth. 
 
@@ -251,8 +263,7 @@ For convenience, if using human reference genome hg38 with chromosomes named chr
 
 For a complete list of parameters, use the *--help* parameter.
 ```
-./CNAsim --help
-python main.py --help
+cnasim --help
 ```
 
 # Example commands
@@ -260,32 +271,32 @@ python main.py --help
 ## 1. Quick experiment for obtaining copy number profiles of a single chromosome for 50 cells
 
 ```
-python main.py -m 0 -n 50 -N 1  
+cnasim -m 0 -n 50 -N 1  
 ```
 
 ## 2. Whole-genome copy number profiles of 100 tumor cells and 3 subclones with resolution and noise as may result from using Ginkgo/HMMcopy
 
 ```
-python main.py -m 0 -n 100 -c 3 -v -U -B 500000 -E1 0.04 -E2 0.1
+cnasim -m 0 -n 100 -c 3 -v -U -B 500000 -E1 0.04 -E2 0.1
 ```
 
 ## 3. Generating whole-genome sequencing reads of 100 tumor cells assuming highly nonuniform coverage
 
 ```
-python main.py -m 2 -n 100 -r1 hg38.fa -U -C 25 -X 0.5 -Y 0.4 
+cnasim -m 2 -n 100 -r1 hg38.fa -U -C 25 -X 0.5 -Y 0.4 
 ```
 
 ## 4. Mimicing large-scale whole-genome 10x genomics breast cancer dataset with ultra-low coverage with synthetic reads and ground truth copy number profiles leveraging 8 cores.
 
 ```
-python main.py -m 2 -n 10000 -n1 0.4 -n2 0.05 -c 7 -c2 100 -c3 50 -r1 path/to/hg38.fa -U -w -v -u 0.2 -C 0.02 -k 10000 -B 5000000 -P 8
+cnasim -m 2 -n 10000 -n1 0.4 -n2 0.05 -c 7 -c2 100 -c3 50 -r1 path/to/hg38.fa -U -w -v -u 0.2 -C 0.02 -k 10000 -B 5000000 -P 8
 ```
 It should be noted that even with very low coverage, the above command will take a substantial amount of time (estimated at ~100 hours). When generating sequencing data for a large number of cells, it is *strongly* recommended to make use of parallelization.
 
 ## 5. Generate whole-genome read counts of 100 tumor cells directly without generating any reads
 
 ```
-python main.py -m 1 -n 100 -U -C 0.1 -M -W 1000000 -B 5000000
+cnasim -m 1 -n 100 -U -C 0.1 -M -W 1000000 -B 5000000
 ```
 
 # Using the error model

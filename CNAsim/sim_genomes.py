@@ -1,5 +1,5 @@
 import numpy as np
-from tree import Tree
+from .tree import Tree
 from collections import Counter
 import os
 import pickle
