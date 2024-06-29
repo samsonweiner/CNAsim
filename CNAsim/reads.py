@@ -222,7 +222,7 @@ def gen_readcounts(tree, chrom_names, bins, num_regions, region_length, uniform_
         with open(prefix + '.pkl', 'rb') as f:
             genome = pickle.load(f)
 
-        full_readcounts = {chrom: [0 for i in range(num_regions[chrom])] for chrom in chrom_names}
+        full_readcounts = {chrom: [[0 for i in range(num_regions[chrom])], [0 for i in range(num_regions[chrom])]] for chrom in chrom_names}
         for chrom in chrom_names:
             for allele in [0, 1]:
                 if len(genome[chrom][allele]) > 0:
@@ -249,19 +249,20 @@ def gen_readcounts(tree, chrom_names, bins, num_regions, region_length, uniform_
                             counts = dict(Counter(window))
                             for r,c in counts.items():
                                 r_ratio = c / cur_window_len
-                                full_readcounts[chrom][r] += (r_ratio * rc)
+                                full_readcounts[chrom][allele][r] += (r_ratio * rc)
         
 
-        binned_readcounts = {chrom: [] for chrom in chrom_names}
+        binned_readcounts = {chrom: [[], []] for chrom in chrom_names}
         for chrom in chrom_names:
-            for i in range(len(bins[chrom])-1):
-                regions = list(range(bins[chrom][i], bins[chrom][i+1]))
-                binned_readcounts[chrom].append(round(sum([full_readcounts[chrom][j] for j in regions])))
+            for allele in [0, 1]:
+                for i in range(len(bins[chrom])-1):
+                    regions = list(range(bins[chrom][i], bins[chrom][i+1]))
+                    binned_readcounts[chrom][allele].append(round(sum([full_readcounts[chrom][allele][j] for j in regions])))
         final_readcounts[cell] = binned_readcounts
         os.remove(prefix + '.pkl')
 
     with open(os.path.join(out_path, 'readcounts.tsv'), 'w+') as f:
-        headers = ['CELL', 'chrom', 'start', 'end', 'readcount']
+        headers = ['CELL', 'chrom', 'start', 'end', 'Acount', 'Bcount']
         f.write('\t'.join(headers) + '\n')
 
         # Writes to file in order of chroms, bins, cell
@@ -270,7 +271,7 @@ def gen_readcounts(tree, chrom_names, bins, num_regions, region_length, uniform_
             for i in range(num_bins):
                 bin_start, bin_end = str(bins[chrom][i]*region_length), str(bins[chrom][i+1]*region_length)
                 for cell in leaves:
-                    line = [cell.name, chrom, bin_start, bin_end, str(final_readcounts[cell][chrom][i])]
+                    line = [cell.name, chrom, bin_start, bin_end, str(final_readcounts[cell][chrom][0][i]), str(final_readcounts[cell][chrom][1][i])]
                     f.write('\t'.join(line) + '\n')
 
 
