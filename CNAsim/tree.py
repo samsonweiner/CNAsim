@@ -342,7 +342,7 @@ def set_root_branchlen(tree, scale):
     tree.root.set_len(tot*scale)
 
 def scale_edge_lengths(tree, place_param):
-    leaf_edge_lens = [leaf.length for leaf in tree.founder.iter_leaves()]
+    leaf_edge_lens = [leaf.length for leaf in tree.founder.get_leaves()]
     avg_leaf_len = sum(leaf_edge_lens) / len(leaf_edge_lens)
     scalar = place_param / avg_leaf_len
 
