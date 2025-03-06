@@ -105,7 +105,7 @@ conda install numpy scipy msprime biopython pyfaidx
 
 Additionally, CNAsim requires that the following packages are installed and configured on the environment.
 * [samtools](http://www.htslib.org/download/) 
-* [dwgsim](https://github.com/nh13/DWGSIM)
+* [dwgsim](https://github.com/nh13/DWGSIM) version >= 0.1.13
 
 Both packages may be installed with `conda`.
 ```
