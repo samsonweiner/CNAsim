@@ -10,8 +10,7 @@ from Bio import SeqIO
 
 import numpy as np
 from scipy.stats import beta, poisson
-from scipy.optimize import newton_krylov
-from scipy.optimize.nonlin import NoConvergence
+from scipy.optimize import newton_krylov, NoConvergence
 
 from .sequence import *
 

@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='CNAsim',
-    version='1.3.4',
+    version='1.3.5',
     author='Samson Weiner',
     author_email='samson.weiner@uconn.edu',
     description='CNAsim is a software package for simulation of single-cell CNA data from tumors.',
