@@ -181,7 +181,7 @@ For convenience, if using human reference genome hg38 with chromosomes named chr
 
    `-c2, --clone-mu` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  Mean number of leaves in a subclone. Must select 0 for clone-criteria. Default: 0
    
-   `-c3, --clone-sd` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  SD in subclone size. Must select 0 for clone-criteria. Default: 0.25*mu
+   `-c3, --clone-sd` &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;  SD in subclone size. Must select 0 for clone-criteria. Default: 0.1*mu
 
 ### Simulate genomes and evolution
 
